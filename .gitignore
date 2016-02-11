@@ -1,0 +1,8 @@
+fudul/secrets.py
+*pyc
+*~
+*#
+media_files/
+privileged_files/
+env/
+venv/
