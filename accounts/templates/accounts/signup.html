@@ -1,0 +1,273 @@
+{% extends 'userena/base_userena.html' %}{% load bootstrap3 %}
+{% block title %}Sign-up{% endblock %}
+{% block subtitle %}Create account at Fudul!{% endblock %}
+
+{% block content %}
+<div class="card-body">
+    <div class="card-block text-center">
+
+{% bootstrap_form_errors form %}
+<form method="post">
+	{% csrf_token %}
+
+    <h6 class="line-on-side text-muted text-center font-small-2"><span>Your name</span></h6>
+		<fieldset class="form-group position-relative has-icon-left mb-1">
+			{% bootstrap_field form.first_name show_label=False %}
+			<div class="form-control-position">
+					<i class="ft-user"></i>
+			</div>
+		</fieldset>
+
+		<fieldset class="form-group position-relative has-icon-left mb-1">
+			{% bootstrap_field form.middle_name show_label=False %}
+			<div class="form-control-position">
+					<i class="ft-user"></i>
+			</div>
+		</fieldset>
+
+		<fieldset class="form-group position-relative has-icon-left mb-1">
+			{% bootstrap_field form.last_name show_label=False %}
+			<div class="form-control-position">
+					<i class="ft-user"></i>
+			</div>
+		</fieldset>
+
+
+    <h6 class="line-on-side text-muted text-center font-small-2"><span>How can we help you?</span></h6>
+    <p><i class="icon-info"></i>Fudul hosts tens of thousands of questions in different exams.  Which exam do you wnat to focus on?</p>
+    <fieldset class="form-group position-relative has-icon-left mb-1">
+      <select id="parent-primary-interest" required {% if form.primary_interest.value and not form.primary_interest.errors %}value="{{ form.primary_interest.value }}" {% endif %} class="form-control">
+         <option value="" selected="">---------</option>
+         {% for primary_interest in primary_interests.meta.order_by_alphabet %}
+            <option value="{{ primary_interest.pk }}">{{ primary_interest.name }}</option>
+         {% endfor %}
+      </select>
+      <div class="form-control-position">
+          <i class="ft-heart"></i>
+      </div>
+    </fieldset>
+
+  {% for primary_interest in primary_interests.with_children %}
+  <div data-primary-interest-pk="{{ primary_interest.pk }}" style="display: none" class="primary-interest-children form-group has-feedback has-feedback-left">
+    <fieldset class="form-group position-relative has-icon-left mb-1">
+      <select class="form-control">
+         <option value="" selected="">---------</option>
+         {% for child_primary_interest in primary_interest.children.order_by_alphabet %}
+            <option value="{{ child_primary_interest.pk }}">{{ child_primary_interest.name }}</option>
+         {% endfor %}
+      </select>
+      <div class="form-control-position">
+        <i class="ft-flag"></i>
+      </div>
+    </fieldset>
+  </div>
+  {% endfor %}
+
+    <h6 class="line-on-side text-muted text-center font-small-2"><span>Your nickname</span></h6>
+    <p><i class="icon-info"></i>Fudul is cooperative, and you can contribute to it.  You have the choice of showing your real name or not whenever you add a contribution to give you credit.</p>
+
+      <fieldset id="fullname" class="form-group position-relative has-icon-left mb-1">
+			{% bootstrap_field form.display_full_name show_label=False %}
+			<div class="form-control-position">
+					<i class="ft-eye"></i>
+			</div>
+		</fieldset>
+        <fieldset id="nickname" style="display: none" class="form-group position-relative has-icon-left mb-1">
+			{% bootstrap_field form.nickname show_label=False %}
+			<div class="form-control-position">
+					<i class="ft-user"></i>
+			</div>
+		</fieldset>
+
+
+    <h6 class="line-on-side text-muted text-center font-small-2"><span>Your contact</span></h6>
+		<p><i class="icon-info"></i>Parts of this question bank are solely available to a specific university.  If you have a university address, make sure you use it to get an access to these parts.  Please note that this dees <strong>not</strong> apply to SMLE and SNLE, which are publicly available to everyone, for free.</p>
+
+		<fieldset class="form-group position-relative has-icon-left mb-1">
+			{% bootstrap_field form.email show_label=False %}
+			<div class="form-control-position">
+					<i class="ft-mail"></i>
+			</div>
+		</fieldset>
+
+		<p><i class="icon-info22"></i>You can optionally enter an alternative, personal email address below.</p>
+
+		<fieldset class="form-group position-relative has-icon-left mb-1">
+			{% bootstrap_field form.alternative_email show_label=False %}
+			<div class="form-control-position">
+					<i class="ft-mail"></i>
+			</div>
+		</fieldset>
+
+		<fieldset class="form-group position-relative has-icon-left mb-1">
+			{% bootstrap_field form.mobile_number show_label=False %}
+			<div class="form-control-position">
+					<i class="ft-phone"></i>
+			</div>
+		</fieldset>
+
+    <h6 class="line-on-side text-muted text-center font-small-2"><span>Your institution</span></h6>
+
+		<div class="form-group has-feedback has-feedback-left">
+                        <select {% if form.institution.value and not form.institution.errors %}value="{{ form.institution.value }}" {% endif %} title="" id="institution-list" class="form-control">
+                              <option value="" selected="">---------</option>
+                           {% for institution in institutions %}
+                              <option value="{{ institution.name }}">{{ institution.name }}</option>
+                           {% endfor %}
+                              <option value="Other">Other</option>
+                        </select>
+			<div class="form-control-feedback">
+				<i class="icon-library2 text-muted"></i>
+			</div>
+		</div>
+                <input {% if form.institution.value and not form.institution.errors %}value="{{ form.institution.value }}" {% endif %}type="text" class="form-control" id="institution-text-field" placeholder="Write your institution here" style="display: none"/>
+		<div style="display: none" class="form-group has-feedback has-feedback-left">
+			{% bootstrap_field form.college show_label=False %}
+			<div class="form-control-feedback">
+				<i class="icon-book text-muted"></i>
+			</div>
+		</div>
+		<div style="display: none" class="form-group has-feedback has-feedback-left">
+			{% bootstrap_field form.batch show_label=False %}
+			<div class="form-control-feedback">
+				<i class="icon-graduation2 text-muted"></i>
+			</div>
+		</div>
+
+    <h6 class="line-on-side text-muted text-center font-small-2"><span>Your secret</span></h6>
+
+		<fieldset class="form-group position-relative has-icon-left mb-1">
+			{% bootstrap_field form.password1 show_label=False %}
+			<div class="form-control-position">
+					<i class="ft-lock"></i>
+			</div>
+		</fieldset>
+
+		<fieldset class="form-group position-relative has-icon-left mb-1">
+			{% bootstrap_field form.password2 show_label=False %}
+			<div class="form-control-position">
+					<i class="ft-lock"></i>
+			</div>
+		</fieldset>
+
+    <h6 class="line-on-side text-muted text-center font-small-2"><span>One last thing...</span></h6>
+
+		<div class="form-group">
+			<div class="checkbox">
+				<label>
+					<input id="agree" type="checkbox" class="styled">
+					I confirm that all information I have entered is correct.
+				</label>
+			</div>
+		</div>
+            <input type="hidden" name="institution">
+		<button disabled type="submit" class="btn btn-teal btn-block btn-lg">Register <i class="icon-circle-right2 position-right"></i></button>
+
+</form>
+	</div>
+</div>
+<div class="card-footer">
+    <div class="">
+        <p class="float-sm-right text-center m-0">Any trouble signing-up? <a target="_blank" href="https://t.me/FudulBot" class="card-link">Try our live chat</a> or <a href="mailto:support@fudulbank.com">email us</a></p>
+    </div>
+</div>
+{% endblock %}
+{% block customscript %}
+<script>
+$(function() {
+    empty_option = $('<option value="" selected="">---------</option>');
+
+    batches = null;
+    $('#institution-list').change(function() {
+        value = $(this).val();
+        if ($('#institution-list option[value=Other]:checked').length) {
+            $('#institution-text-field').show();
+            $('#id_college, #id_batch').closest('.form-group.has-feedback').hide();
+            $('#id_college, #id_batch').prop('required', false).html('');
+            $('#institution-text-field').attr('required', 'required');
+        } else {
+            $('#institution-text-field').hide();
+            $('#institution-text-field').removeAttr('required');
+            $('input[name=institution]').val(value);
+            if (value.length) {
+                $.ajax({
+                    url: "{% url 'get_institution_details' %}",
+                    data: {
+                        name: value
+                    },
+                    success: function(data) {
+                        $("#id_college").prop('required', true).html(empty_option);
+                        $("#id_college").closest('.form-group.has-feedback').show();
+                        $.each(data.colleges, function(pk, name) {
+                            option = $("<option>").val(pk).html(name);
+                            option.appendTo("#id_college");
+                        });
+                        batches = data.batches;
+                    }
+                });
+            }
+        }
+    });
+    $('#institution-text-field').change(function() {
+        value = $(this).val();
+        $('input[name=institution]').val(value);
+    });
+    $("#id_college").change(function() {
+        value = $(this).val();
+        college_batches = batches[value]
+        if (value.length && college_batches.length) {
+            $("#id_batch").prop('required', true).html(empty_option);
+            $("#id_batch").closest('.form-group.has-feedback').show();
+
+            $.each(college_batches, function(index, batch_data) {
+                pk = batch_data[0];
+                name = batch_data[1];
+                option = $("<option>").val(pk).html(name);
+                option.appendTo("#id_batch");
+            });
+        } else {
+            $("#id_batch").prop('required', false);
+            $("#id_batch").closest('.form-group.has-feedback').hide();
+        }
+
+    });
+    $('#fullname').change(function() {
+        value = $(this).val();
+        if ($('#fullname option[value=N]:checked').length) {
+            $('#nickname input').prop('required', true);
+            $('#nickname').show();
+        } else {
+            $('#nickname input').prop('required', false);
+            $('#nickname').hide();
+
+        }
+    });
+
+    $('#parent-primary-interest').change(function(){
+      value = $(this).val();
+      $children_field = $('[data-primary-interest-pk="' + value + '"]');
+      if (value && $children_field.length){
+        $('#parent-primary-interest').attr('name', null);
+        $('#parent-primary-interest').find('select').attr('required', false);
+        $children_field.find('select').attr('required', true).attr('name', 'primary_interest')
+        $children_field.show();
+        $('.primary-interest-children').not($children_field).hide();
+      } else {
+        $('#parent-primary-interest').attr('name', 'primary_interest');
+        $('#parent-primary-interest').find('select').attr('required', true);
+        $('.primary-interest-children').hide();
+        $('.primary-interest-children').find('select').attr('required', false)
+      }
+    });
+
+    $("#agree").on('ready change', function() {
+        if ($("#agree:checked").length) {
+            $("button[type=submit]").removeAttr('disabled');
+        } else {
+            $("button[type=submit]").attr('disabled', true);
+        }
+    });
+});
+</script>
+
+{% endblock %}
