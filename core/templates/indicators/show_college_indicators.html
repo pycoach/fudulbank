@@ -1,0 +1,139 @@
+{% extends 'base_new.html' %}{% load static %}
+{% block title %}Fudul | {{ college.name }} indicators{% endblock %}
+
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/1.31.2/plotly.min.js" integrity="sha384-pEbvKAAHroDnU/rb2+IiUrslRtrsAGTaQNZjaFWCY3d/h5FlaWxqMkhh8MX4m0dQ" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.19.3/moment.min.js" integrity="sha384-8xuC0/BWqiPX72DT7LJqj+QiH5eYVT5KsUOewB/DmXi7KPPEdt4Td3xu3lg+slER" crossorigin="anonymous"></script>
+{% endblock %}
+
+{% block header_title %}
+<h1>{{ college.name }} indicators</h1>
+{% endblock %}
+
+{% block breadcrumb %}
+      <li class="breadcrumb-item"><a href="{% url 'index' %}">Home page</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'show_indicator_index' %}">Indicators</a></li>
+			<li class="breadcrumb-item active">{{ college.name }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+	<div class="card-body">
+		<div class="card-block">
+      <p>These two graphs track <strong>active users</strong> (defined as: users who created at least one new session) and <strong>average answers</strong> (defined as: answers submitted with a choice, i.e. not skipped, divided by number of active users).  This only includes users in the {{ college.name }} at {{ college.institution.name }} and is broken down per batch.</p>
+      <div id="college-user-plot" style="width:100%; height:600px;"></div>
+      <div id="college-answer-plot" style="width:100%; height:600px;"></div>
+      <div id="college-contributor-plot" style="width:100%; height:600px;"></div>
+      <div id="college-contribution-plot" style="width:100%; height:600px;"></div>
+		</div><!--card-block-->
+	</div><!--card-body-->
+</div><!--card-->
+{% endblock %}
+{% block customscript %}
+  <script>
+
+batches = { {% for batch in college.batch_set.all %}{{ batch.pk }}: {name: '{{ batch.name }}', complete_number: {{ batch.complete_number|default:'null'}} },{% endfor %}
+}
+
+  Plotly.d3.csv("{% url 'get_privileged_file' csv_filename %}", function(err, rows){
+
+{% include 'indicators/partials/shared_functions.js' %}
+
+      function get_user_count_hover(count_field, batch_pk){
+        if (batch_pk){
+          count_field = count_field + '_' + batch_pk;
+        }
+
+        return rows.map(function(row) {
+          end_date = moment(row['date'])
+          start_date = moment(row['date']).subtract(30, 'days')
+
+          // Calculate change
+          change_percentage = get_change_percentage(count_field, row)
+          if (batches[batch_pk].complete_number){
+            penetration_percentage = (row[count_field] / batches[batch_pk].complete_number) * 100
+            penetration_percentage = penetration_percentage.toPrecision(2)
+            penetration_str = penetration_percentage + "% penetration in " + batches[batch_pk].name + "<br>"
+          } else {
+            penetration_str = ""
+          }
+
+          end_date_str = end_date.format('DD MMM')
+          start_date_str = start_date.format('DD MMM')
+          return '<span style=\'font-weight: 700; text-decoration: underline;\'>' + start_date_str + '‒' + end_date_str + '</span><br>' + row[count_field] + ' (' + change_percentage + '%)<br>' + penetration_str
+        });
+      }
+
+      function stackedArea(data) {
+      	for(var i=1; i<data.length; i++) {
+      		for(var j=0; j<(Math.min(data[i]['y'].length, data[i-1]['y'].length)); j++) {
+        			data[i]['y'][j] += data[i-1]['y'][j];
+      		}
+      	}
+      	return data;
+      }
+
+      user_data = [];
+      answer_data = [];
+      contributor_data = [];
+      contribution_data = [];
+
+      dates = unpack('date');
+
+      for (batch_pk in batches){
+        var trace = {
+          fill: 'tonextx',
+          name: batches[batch_pk].name,
+          x: dates,
+          y: unpack('user_count_' + batch_pk, true),
+          hoverinfo: 'text+name',
+          hovertext: get_user_count_hover('user_count', batch_pk),
+        }
+        user_data.push(trace);
+      }
+
+      for (batch_pk in batches){
+        var trace = {
+          fill: 'tonextx',
+          name: batches[batch_pk].name,
+          x: dates,
+          y: unpack('answer_avg_' + batch_pk, true),
+          hoverinfo: 'text+name',
+          hovertext: get_hover('answer_avg', batch_pk),
+        }
+        answer_data.push(trace);
+      }
+
+      for (batch_pk in batches){
+        var trace = {
+          fill: 'tonextx',
+          name: batches[batch_pk].name,
+          x: dates,
+          y: unpack('contributor_count_' + batch_pk, true),
+          hoverinfo: 'text+name',
+          hovertext: get_hover('contributor_count', batch_pk),
+        }
+        contributor_data.push(trace);
+      }
+
+      for (batch_pk in batches){
+        var trace = {
+          fill: 'tonextx',
+          name: batches[batch_pk].name,
+          x: dates,
+          y: get_contribution_data(batch_pk),
+          hoverinfo: 'text+name',
+          hovertext: get_contribution_hover(batch_pk),
+        }
+        contribution_data.push(trace);
+      }
+
+      Plotly.newPlot('college-user-plot', stackedArea(user_data), {title: "{{ college.name}} user plot"});
+      Plotly.newPlot('college-answer-plot', stackedArea(answer_data), {title: "{{ college.name}} answer-depth plot"});
+
+      Plotly.newPlot('college-contributor-plot', stackedArea(contributor_data), {title: "{{ college.name}} contributor plot"});
+      Plotly.newPlot('college-contribution-plot', stackedArea(contribution_data), {title: "{{ college.name}} contribution plot"});
+  })
+    </script>
+
+{% endblock %}
