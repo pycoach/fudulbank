@@ -1,0 +1,144 @@
+{% extends 'base_new.html' %}{% load static cache bootstrap3 exam_utils %}
+{% block title %}Fudul | {{ exam.name }}: Add questions{% endblock %}
+
+{% block header_title %}
+<h1>{{ exam.name }}: Add questions</h1>
+{% with is_add_active=True %}
+{% include 'exams/partials/exam_editor_buttons.html' %}
+{% endwith %}
+{% endblock %}
+
+{% block breadcrumb %}
+      <li class="breadcrumb-item"><a href="{% url 'index' %}">Home page</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'exams:list_meta_categories' %}">Exams</a></li>
+			{% for parent_category in exam.category.get_parent_categories %}
+			<li class="breadcrumb-item"><a href="{% url 'exams:show_category' parent_category.get_slugs %}">{{ parent_category.name }}</a></li>
+			{% endfor %}
+			<li class="breadcrumb-item"><a href="{% url 'exams:show_category' exam.category.get_slugs %}">{{ exam.category.name }}</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'exams:create_session' exam.category.get_slugs exam.pk %}">{{ exam.name }}</a></li>
+			<li class="breadcrumb-item">Add</li>
+{% endblock %}
+
+{% block content %}
+
+<div class="row">
+   <div class="col-md-8">
+{% if not exam|can_user_edit:user %}
+  <p class="alert alert-warning"><i class="icon-warning22"></i> This page is for user's contributions. <strong>If you are an editor, ask to be given the right access. </strong></p>
+{% endif %}
+    <div class="card">
+						<div class="card-header">
+							<h1 class="card-title">{% if editor %}Add {% else %} Submit{% endif %} questions to {{ exam.name }}</h1>
+						</div>
+        <div id="form-panel" class="card-body">
+					<div class="card-block">
+{% cache 10800 add_question exam.pk %}{# 3 hours #}
+{% include 'exams/partials/question_form.html' %}
+{% endcache %}
+					</div><!--card-block-->
+        </div><!--card-body-->
+    </div> <!--card-->
+</div> <!--col-->
+{% if exam|can_user_edit:user %}
+<div class="col-md-4">
+    <div id="exam-stats" class="card">
+       <div class="card-header">
+           <h2 class="card-title">{{ exam.name }} statistics</h2>
+       </div>
+       <div class="card-body">
+{% cache 10800 exam_stats exam.pk %}{# 3 hours #}
+{% include 'exams/partials/exam_stats.html' %}
+{% endcache %}
+       </div>
+    </div>
+</div>
+    {% endif %}<!--col-->
+</div> <!--row-->
+{% endblock %}
+{% block customscript %}
+{{ question_form.media }}
+
+    <link rel="stylesheet" href="{% static 'css/toastr.min.css' %}">
+    <script src="{% static 'js/jquery.formset.js' %}"></script>
+    <script src="{% static 'js/jquery.autogrowtextarea.min.js' %}"></script>
+    <script src="{% static 'js/toastr.js' %}"></script>
+    <script type="text/javascript">
+
+    $(function(){
+        $('[data-toggle="tooltip"]').tooltip();
+
+        $("form#add-question-form").submit(function (event) {
+            // iOS 11.3 fails to submit AJAX with empty file input fields.
+            var $figure = $("#id_figure");
+            if(!$figure.val()){
+                $figure.attr('disabled', true);
+            }
+            /* stop form from submitting normally */
+            event.preventDefault();
+            /* get some values from elements on the page: */
+            var formData = new FormData($(this)[0]);
+
+            {% if question %}
+                var url = "{% url 'exams:handle_question' exam.pk question.pk %}";
+            {% else %}
+                var url = "{% url 'exams:handle_question' exam.pk %}";
+            {% endif %}
+            /* Send the data */
+            $.ajax({
+                url: url,
+                type: 'POST',
+                data: formData,
+                cache: false,
+                contentType: false,
+                enctype: 'multipart/form-data',
+                processData: false,
+                success: function (data) {
+                    if (data.success == 1) {
+                        $(':input').not(':button, :submit, :reset, :hidden, :checkbox').removeAttr('checked').removeAttr('selected').not('‌​:checkbox, :radio, select').val('');
+                        $('#id_issues, #id_parent_question').val('').trigger('change');
+                        // For some reason, doing checkbox clean-up in a second steps works!
+                        $('input:checkbox').removeAttr('checked');
+                        // show success message (using toastr)
+                        toastr.options.positionClass = "toast-top-left";
+                        toastr.success("Question #" + data.question_pk + " has been successfully added. Fill another!");
+                        {% if question %}
+                        window.location.href = data.show_url;
+                        {% else %}
+                        $.ajax({url: "{% url 'exams:update_exam_stats' exam.pk %}",
+                                success: function(data){
+                                  $("#exam-stats .card-body").html(data.stat_html);
+                                }
+                        });
+                        {% endif %}
+                    } else {
+                        toastr.warning("There was an issue! " + data.message);
+                        $("#form-panel").html(data);
+                    }}
+            });
+        });
+    });
+        $('#choice_formset input[type=checkbox]').change(function(){
+            $('#choice_formset input[type=checkbox]').not(this).prop('checked', false);
+        });
+        $('#choice_formset div.checkbox label').ready(function(){
+             $(this).html($(this).children('input'));
+        });
+        $("textarea").autoGrow();
+
+        // add formset controls
+        $("#choice_formset .form-container").formset({
+            prefix: '{{ choice_formset.prefix }}',
+            addText: 'Add a Choice',
+            deleteText: 'Delete',
+            addCssClass: 'add-row btn btn-xs btn-primary',
+            deleteCssClass: 'delete-row btn btn-xs btn-danger',
+        });
+        // FIXME
+{#        $('#choice_formset div.checkbox label').append( "<span></span>" );#}
+    </script>
+
+{% with category_pk=exam.category.pk  parent_category_pk=exam.category.parent_category.pk %}
+  {% include 'exams/partials/dynamic_sidebar.html' %}
+{% endwith %}
+
+{% endblock %}
