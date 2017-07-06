@@ -1,0 +1,39 @@
+{% load exam_utils %}
+<ul>
+  <li><strong>{{ exam.question_set.count }} questions in total:</strong>
+     <ul>
+       <li>{{ exam.question_set.with_no_issues.count }} with <strong>no</strong> issues.</li>
+       <li>{{ exam.question_set.with_issues.count }} with issues.</li>
+       <li>{{ exam.question_set.with_approved_latest_revision.count }} with latest revision approved.</li>
+       <li>{{ exam.question_set.with_pending_latest_revision.count }} with latest revision pending.</li>
+     </ul>
+  </li>
+    <li>
+      {% with subject_qs=exam.subject_set.with_undeleted_questions|order_by_exam_questions:exam %}
+      {% if subject_qs.exists %}
+       <strong>Specified subjects:</strong>
+       <ul>
+       {% for subject in subject_qs %}
+          <li>{{ subject.name }} ({{ subject.question_set.distinct.count }} questions)</li>
+       {% endfor %%}
+       </ul>
+      {% else %}
+       No subjects were specified.
+      {% endif %}
+      {% endwith %}
+    </li>
+    <li>
+      {% with source_qs=exam.get_sources.with_undeleted_questions|order_by_exam_questions:exam %}
+      {% if source_qs %}
+       <strong>Specified sources:</strong>
+       <ul>
+       {% for source in source_qs %}
+          <li>{{ source.name }} ({{ exam|get_exam_question_count_per_meta:source }} questions)</li>
+       {% endfor %%}
+       </ul>
+      {% else %}
+       No sources were specified.
+      {% endif %}
+      {% endwith %}
+    </li>
+</ul>
