@@ -1,0 +1,277 @@
+{% extends 'base_new.html' %}{% load static exam_utils %}
+{% block title %}Fudul | {{ exam.name }}: List suggested changes ({{ pending_count }}){% endblock %}
+{% block header_title %}
+<h1>{{ exam.name }}: List suggested changes  ({{ pending_count }})</h1>
+{% with is_list_active=True %}
+{% include 'exams/partials/exam_editor_buttons.html' %}
+{% endwith %}
+{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'css/toastr.min.css' %}">
+<style>
+.manual-control + .automatic-control{
+  display: none;
+}
+
+.revision-text{
+  white-space: pre-wrap;
+  font-weight: 700;
+}
+
+.choices li[data-is-right="true"], .choices li[data-is-right="true"] input{
+  font-weight: 700;
+}
+
+.text-to-remove{
+  text-decoration: line-through;
+}
+
+.text-to-add{
+  color: green;
+}
+
+#show-more:disabled {
+    cursor: not-allowed;
+}
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+      <li class="breadcrumb-item"><a href="{% url 'index' %}">Home page</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'exams:list_meta_categories' %}">Exams</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'exams:show_tool_index' %}">Editor's tools</a></li>
+      <li class="breadcrumb-item active">Suggested changes</li>
+{% endblock %}
+
+{% block content %}
+      <div class="card border">
+        <div class="card-body">
+          <div class="card-block">
+            <p>Welcome to the <strong>Suggested Changes</strong>.  This tool scans the question bank once everyday to suggest changes.  You can approve these changes, manullay edit them, or completely ignore them.</p>
+          </div>
+          <div class="card-block row justify-content-center">
+            <blockquote class="blockquote col-sm-10 col-md-8">
+               <p class="mb-0 font-small-3">“It’s not tools, culture or communication that make humans unique but our knack for offloading dirty work onto machines. [...] Humans are unique because we are complex, and we are complex because we are the beast that automates.”</p>
+               <footer class="font-small-2 text-right blockquote-footer"><cite title=" To automate is human "><a target="_blank" href="https://aeon.co/essays/the-offloading-ape-the-human-is-the-beast-that-automates"> To automate is human </a></cite></footer>
+            </blockquote>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div class="card-block" id="suggestion-container">
+          </div>
+          <div class="card-block">
+            <button id="show-more" style="display: none" class="btn btn-primary"><i class="ft-more-horizontal"></i>Show 50 more</button>
+          </div>
+        </div>
+    </div>
+{% endblock %}
+{% block customscript %}
+
+<script src="{% static 'js/toastr.js' %}"></script>
+<script src="{% url 'js_reverse' %}"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/3.5.0/diff.min.js" integrity="sha384-kFZay1kUVYthe5mwHuE5+fwtA9nn7agG8/7SX2zx1KlJChIy7D1mTEf33nKpDb+d" crossorigin="anonymous"></script>
+
+<script>
+    function getFormattedDiff(first_text, second_text){
+      var diff = JsDiff.diffChars(first_text, second_text),
+          part_text = "",
+          formatted_text = "";
+
+      diff.forEach(function(part){
+        // green for additions, red for deletions
+        // grey for common parts
+        var span_class = part.added ? 'text-to-add' :
+          part.removed ? 'text-to-remove danger darken-4' : '';
+        if (span_class){
+          part_text = '<span class="' + span_class + '">' + part.value + '</span>';
+        } else {
+          part_text = part.value;
+        }
+        formatted_text += part_text;
+      });
+      return formatted_text;
+    }
+
+    function constructSuggestions(suggestions){
+      var output = "";
+      for (suggestion_index in suggestions){
+        var suggestion = suggestions[suggestion_index];
+        var processed_revision_text = suggestion.revision.text;
+        for (rule_index in suggestion.rules){
+          var rule = suggestion.rules[rule_index];
+          if (rule.scope != 'ALL' && rule.scope != 'REVISIONS'){
+            continue
+          }
+          var regex_pattern = RegExp(rule.regex_pattern, 'g')
+          processed_revision_text = processed_revision_text.replace(regex_pattern, rule.regex_replacement);
+        }
+
+        var formatted_revision = getFormattedDiff(suggestion.revision.text, processed_revision_text);
+        output += "<div data-suggestion-pk='" + suggestion.id + "' class='suggestion-container'>"
+        output += "<h3 class='text-bold-600'><a target='_blank' href='" + Urls['exams:list_revisions']('{{ category_slugs }}', {{ exam.pk }}, suggestion.revision.question_id) + "'>Question #" + suggestion.revision.question_id + "</a></h3>";
+        output += "<div class='automatic-control'><div data-revision-pk='" + suggestion.revision.id + "' class='revision-text'>" + formatted_revision + "</div><ul class='mt-2 choices' type='A'>"
+        for (choice_index in suggestion.revision.choice_set){
+          var choice = suggestion.revision.choice_set[choice_index]
+          var processed_choice_text = choice.text;
+          for (rule_index in suggestion.rules){
+            var rule = suggestion.rules[rule_index];
+            if (rule.scope != 'ALL' && rule.scope != 'CHOICES'){
+              continue
+            }
+            var regex_pattern = RegExp(rule.regex_pattern, 'g')
+            processed_choice_text = processed_choice_text.replace(regex_pattern,  rule.regex_replacement);
+          }
+          var formatted_choice = getFormattedDiff(choice.text, processed_choice_text);
+          output += "<li data-is-right='" + choice.is_right.toString() +"' data-choice-pk='" + choice.id + "'>" + formatted_choice + "</li>"
+        }
+        output += "</ul><div class='btn-group action-btns' role='group' aria-label='Suggestion actions'><button data-action='keep' class='btn btn-success submit'>Approve</button><button data-action='edit' class='btn btn-warning edit'>Edit</button><button data-action='decline' class='btn btn-danger ignore'>Ignore</button></div></div><hr></div>"
+      }
+      var element = document.getElementById('suggestion-container')
+      element.innerHTML += output;
+    }
+
+    function fetchCorrections(cursor){
+      $.ajax({method: 'get',
+              url: "{% url 'suggestion-list' %}",
+              data: {format: 'json',
+                     cursor: cursor,
+                     exam_pk: {{ exam.pk }} },
+              success: function(data){
+                if (data.next){
+                  var next_cursor = new URL(data.next).searchParams.get("cursor");
+                  $("#show-more").data('cursor', next_cursor).show();
+                } else {
+                  $("#show-more").attr('disabled', 'disabled');
+                }
+                constructSuggestions(data.results);
+              }
+      });
+    }
+
+    $(function () {
+      $("#show-more").click(function(){
+        var next_cursor = $(this).data('cursor');
+        fetchCorrections(next_cursor)
+      });
+
+      $('[data-toggle="tooltip"]').tooltip();
+      $(document).on('click', '.cancel-edit', function(){
+        var $container = $(this).closest('.suggestion-container')
+        var manual_control = $container.find('.manual-control');
+        manual_control.remove();
+      });
+
+      $(document).on('click', '.edit', function(){
+        var $container = $(this).closest('.suggestion-container')
+        var $automatic_control = $container.find('.automatic-control');
+        var $manual_control = $automatic_control.clone(true);
+        var $revision = $manual_control.find('.revision-text');
+        var $choices = $manual_control.find('.choices li');
+
+        $manual_control.removeClass('automatic-control').addClass('manual-control')
+        $manual_control.find('.text-to-add').each(function(){
+          $(this).contents().unwrap();
+        });
+        $manual_control.find('.text-to-remove').remove();
+
+        var revision_pk = $revision.data('revision-pk');
+        var revision_text = $revision.html();
+
+        $revision.html('<textarea class="form-control">' + revision_text + '</textarea>');
+
+        $choices.each(function(){
+          var $choice = $(this);
+          var choice_text = $choice.html();
+          $choice.html('<input class="form-control" value="' + choice_text + '">');
+        });
+
+        $manual_control.find('.action-btns').html('<button data-action="submit_edit" class="btn btn-success submit-edit">Submit</button><button class="btn btn-danger cancel-edit">Cancel</button>')
+        $automatic_control.before($manual_control);
+      });
+
+
+      $(document).on('click', '.submit, .ignore, .submit-edit', function(){
+        var $btn = $(this);
+        var action = $btn.data('action');
+        var $container = $btn.closest('.suggestion-container')
+        var suggestion_pk = $container.data('suggestion-pk');
+
+        if (action == 'keep' || action == 'submit_edit'){
+          var $revision = $container.find('.revision-text');
+          var revision_pk = $revision.data('revision-pk');
+
+          if (action == 'submit_edit'){
+            var $control = $container.find('.manual-control');
+            var change_summary = 'Applying automatic suggestion with manual changes';
+            revision_text = $control.find('.revision-text').find('textarea').val();
+          } else if (action == 'keep'){
+            var $control = $container.find('.automatic-control');
+            var change_summary = 'Applying automatic suggestion';
+            $control.find('.text-to-add').each(function(){
+              $(this).contents().unwrap();
+            });
+            $control.find('.text-to-remove').remove();
+            var revision_text = $control.find('.revision-text').html();
+          }
+
+          var $choices = $control.find('.choices li');
+          var data = {'suggestion_pk': suggestion_pk,
+                      'action': action,
+                      'text': revision_text,
+                      'change_summary': change_summary,
+                      'choice_set-TOTAL_FORMS': $choices.length,
+                      'choice_set-INITIAL_FORMS': $choices.length,
+                      'choice_set-MAX_NUM_FORMS': ''}
+
+          $choices.each(function(index){
+            var $choice = $(this)
+            var choice_pk = $choice.data('choice-pk')
+            var is_right = $choice.data('is-right')
+            data['choice_set-' + index + '-id'] = choice_pk;
+            data['choice_set-' + index + '-revision'] = revision_pk;
+
+            if (action == 'submit_edit'){
+              var choice_text = $choice.find('input').val();
+            } else if (action == 'keep'){
+              var choice_text = $choice.html();
+            }
+
+            data['choice_set-' + index + '-text'] = choice_text;
+
+            if (is_right){
+              is_right_switch = 'on';
+            } else {
+              is_right_switch = '';
+            }
+            data['choice_set-' + index + '-is_right'] = is_right_switch;
+          });
+        } else if (action == 'decline'){
+          var data = {'action': action,
+                      'suggestion_pk': suggestion_pk
+          }
+        }
+
+        $container.remove();
+        $.ajax({url: '{% url "exams:handle_suggestion"  %}',
+                data: data,
+                method: 'POST',
+                success: function(data){
+                  if (data.success){
+                    toastr.success("Solved!")
+                  } else {
+                    toastr.error(data.message)
+                  }
+                }
+        });
+      });
+
+      fetchCorrections();
+    });
+</script>
+{% with category_pk=exam.category.pk  parent_category_pk=exam.category.parent_category.pk %}
+  {% include 'exams/partials/dynamic_sidebar.html' %}
+{% endwith %}
+{% endblock %}
