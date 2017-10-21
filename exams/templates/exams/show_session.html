@@ -1,0 +1,1569 @@
+<!DOCTYPE html>{% load static account_utils exam_utils %}
+{% include 'partials/call_out.html' %}
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+        <title>Fudul | {{ session.exam.name }} session #{{ session.pk }}</title>
+
+        <script defer src="https://use.fontawesome.com/releases/v5.0.6/js/all.js" integrity="sha384-0AJY8UERsBUKdWcyF3o2kisLKeIo6G4Tbd8Y6fbyw6qYmn4WBuqcvxokp8m2UzSD" crossorigin="anonymous"></script>
+
+        <link rel="shortcut icon" href="{% static 'img/logo-monkey.png' %}">
+        <link rel="manifest" href="{% static 'manifest.json' %}">
+
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Montserrat:300,300i,400,400i,500,500i%7COpen+Sans:300,300i,400,400i,600,600i,700,700i">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.5.2/animate.min.css" integrity="sha384-OHBBOqpYHNsIqQy8hL1U+8OXf9hH6QRxi0+EODezv82DfnZoV7qoHAZDwMwEJvSw" crossorigin="anonymous">
+        <link rel="stylesheet" href="{% static 'css/toastr.min.css' %}">
+        <link rel="stylesheet" href="{% static 'css/show_session.css' %}?v=2.5">
+        <style>
+        :root{
+          --primary-background-color: {{ user.profile.session_theme.primary_background_color|default:default_session_theme.primary_background_color }};
+          --secondary-background-color: {{ user.profile.session_theme.secondary_background_color|default:default_session_theme.secondary_background_color }};
+          --tertiary-background-color: {{ user.profile.session_theme.tertiary_background_color|default:default_session_theme.tertiary_background_color }};
+          --tooltip-background-color: {{ user.profile.session_theme.tooltip_background_color|default:default_session_theme.tooltip_background_color }};
+          --primary-font-color: {{ user.profile.session_theme.primary_font_color|default:default_session_theme.primary_font_color }};
+          --secondary-font-color: {{ user.profile.session_theme.secondary_font_color|default:default_session_theme.secondary_font_color }};
+          --tertiary-font-color: {{ user.profile.session_theme.tertiary_font_color|default:default_session_theme.tertiary_font_color }};
+          --tooltip-font-color: {{ user.profile.session_theme.tooltip_font_color|default:default_session_theme.tooltip_font_color }};
+          --highlight-background: {{ user.profile.session_theme.highlight_background|default:default_session_theme.highlight_background }};
+          --highlight-color: {{ user.profile.session_theme.highlight_color|default:default_session_theme.highlight_color }};
+          --table-active: {{ user.profile.session_theme.table_active|default:default_session_theme.table_active }};
+          --table-hover: {{ user.profile.session_theme.table_hover|default:default_session_theme.table_hover }};
+        }
+        </style>
+        {% include 'partials/piwik.html' %}
+    </head>
+    <body data-session-is-examinable="{% if session.is_examinable %}true{% else %}false{% endif %}" data-session-mode="{{ session.session_mode }}" data-has-finished="false">
+    <div class="container-fluid" id="container">
+        <div id="top-info" class="row align-items-center">
+            <div class ="col-sm-3 text-sm-left text-center">
+              <a href="/" class="navbar-brand mt-2 mt-sm-0">
+                <img alt="Fudul logo" src="{% static 'img/logo-monkey.png' %}" class="img-fluid brand-logo">
+                <h2 class="brand-text">Fudul</h2></a>
+            </div>
+            <div class="col-sm-6 text-center"> <a target="_blank" href="{% url 'exams:create_session' category_slugs session.exam.pk %}">{{ session.exam.name }}</a> <span class="separator">•</span> Session id: <span id="session-pk">{{ session.pk }}</span> <span class="d-none d-sm-inline">({{ session.get_session_mode_display }})</span><br>Question id: <a target="_blank" href="{% url 'exams:list_revisions' category_slugs session.exam.pk current_question.pk %}" id="question-pk">{{ current_question.pk }}</a> </div>
+            <div class="col-sm-3 top-question-id font-weight-bold text-sm-right text-center my-2 mb-sm-0"><i class="fas fa-spinner fa-pulse fa-fw mr-1" id="question-loading" title="Loading session questions..."></i><div id="question-sequence"></div> of <div id="question-total"></div></div>
+        </div><!--top-info-->
+        <div id="top-options" class="row text-center">
+          <div class="col-auto pl-2 p-0">
+               <div class="option" id="contribute">
+                   <a data-placement="left" data-toggle="tooltip" title=" If you have any improvements on the question you can help us with, please submit it here.Your edits will be quickly available to public."> <i class="fas fa-pencil-alt"></i> Edit</a>
+               </div>
+          </div>
+           <div class="col-auto p-0 ml-auto">
+               <div id="mark" class="option" data-toggle="tooltip" data-html="true" data-title="<strong>Hint:</strong> you can also press <kbd>Alt+M</kbd> to toggle question mark.">
+                  <i id="mark-loading" class="fas fa-spinner fa-pulse fa-fw"></i>
+                  <i class="fas fa-flag"></i> Mark
+               </div>
+           </div>
+
+           <div class="col-auto p-0">
+               <div data-toggle="modal" data-target="#NormalValues" class="option">
+                  <i class="fas fa-flask"></i>  <span class="d-sm-inline d-none">Lab values</span>
+               </div>
+           </div>
+
+           <div class="col-auto p-0">
+               <div id="settings" class="option">
+                  <i class="fas fa-sliders-h"></i>  <span class="d-sm-inline d-none">Settings</span>
+               </div>
+           </div>
+           {% if session.is_examinable %}
+           <div class="col-auto p-0">
+               <div id="share" class="emphasized option">
+                  <i class="fas fa-share-alt"></i> <span class="d-sm-inline d-none">Share</span>
+               </div>
+           </div>
+           {% endif %}
+           <div class="col-auto pl-2">
+             <div id="keyboard-hint" data-toggle="tooltip" data-html="true" data-title="<h5>Keyboard shortcuts</h5><p><strong>Hint: </strong>  In Fudul, you can go through a whole exam without touching the mouse!  Here is how:</p><table id='keyboard-instructions'><tr><th><kbd>→</kbd></th><td>Go to next question.</td></tr><tr><th><kbd>←</kbd></th><td>Go to previous question.</td></tr><tr><th><kbd>Ctrl</kbd>+<kbd>↑</kbd></th><td>Select previous choice.</td></tr><tr><th><kbd>Ctrl</kbd>+<kbd>↓</kbd></th><td>Select next choice.</td></tr><tr><th><kbd>Ctrl</kbd>+<kbd>Enter</kbd></th><td>Submit answer to current question.</td></tr><tr><th><kbd>Alt</kbd>+<kbd>M</kbd></th><td>Toggle mark on current question.</td></tr>{% if session.is_examinable %}<tr><th><kbd>Alt</kbd>+<kbd>U</kbd></th><td>Find an unsolved question in this session.</td></tr>{% endif %}</table>">
+                 <i data-toggle class="fas fa-keyboard ml-2"></i>
+             </div>
+           </div>
+        </div><!--top-options-->
+
+        <div id="question-row" class="row">
+          <div id="question-col" class="col-12 {% if is_shared %}col-md-8 col-lg-9{% else %}col-md-12{% endif %}">
+            <div class="row">
+              <div class="col-2 col-sm-1 d-lg-none mobile-slide next order-3"></div>
+              <div class="col-2 col-sm-1 d-lg-none mobile-slide previous order-1"></div>
+              <div id="question-container" class="col-8 col-sm-10 col-lg-12 order-2 px-0 px-lg-5 py-4">
+                <div id="question-pool">
+                  {% with question=current_question %}
+                   {% include 'exams/partials/session_question.html' %}
+                  {% endwith %}
+                </div>
+                <button type="button" id="submit" class="btn">Submit <i class="fas fa-angle-right"></i></button>
+                <div class="row">
+                  <div class="col-sm-8">
+                    <button class="btn btn-outline-primary" id="explain">Improve this explanation!</button>
+                  </div>
+                  <div class="col-sm-4">
+                    <button class="btn btn-outline-primary" id="add-mnemonics"><i class="fas fa-book"></i> Add a mnemonic!</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% if is_shared %}
+          <div id="sharing-sidebar" class="col-12 col-md-4 col-lg-3 text-center py-4">
+            <p class="mb-0">You are sharing this session with:</p>
+            {% for shared_session in shared_sessions %}
+            <div id="shared-session-{{ shared_session.pk }}">
+              <p class="sharer-name mt-2 mb-1">{{ shared_session.submitter|get_user_credit:user }}</p>
+              <div class="row justify-content-center">
+                <div class="col-6 col-md-10">
+                  <div data-pk="{{ shared_session.pk }}" data-has-finished="{% if shared_session.has_finished %}true{% else %}false{% endif %}" class="progress" style="height: 5px;">
+                    <div class="progress-bar bg-success" role="progressbar" aria-valuemin="0" aria-valuemax="100"></div>
+                    <div class="progress-bar bg-danger" role="progressbar" aria-valuemin="0" aria-valuemax="100"></div>
+                    <div class="progress-bar bg-warning" role="progressbar" aria-valuemin="0" aria-valuemax="100"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+
+          </div>
+          {% endif %}
+        </div>
+
+        <div id="footer" class="row text-center font-weight-bold">
+          <div class="col-sm-6 text-sm-left order-2 order-sm-1">
+           <a id="back" class="float-left float-sm-none option" href="{% url 'exams:create_session' category_slugs session.exam.pk %}"><i class="fas fa-sign-out-alt"></i> Back</a>
+           <a id="results" class="float-left float-sm-none option" href="{% url 'exams:show_session_results' category_slugs session.exam.pk session.pk %}"><i class="far fa-check-square"></i> Results</a>
+           <div id="end" class="float-left float-sm-none option"><i class="fas fa-sign-out-alt"></i> End</div>
+           <div id="contributors" class="float-right float-sm-none option"><i class="fas fa-star"></i> Contributors</div>
+           <div id="help-me" class="float-right float-sm-none option d-none d-sm-inline-block"><i class="fas fa-comment"></i> Get help</div>
+          </div>
+          <div class="col-sm-6 text-sm-right order-1 order-sm-2">
+            <div class="row justify-content-end no-gutters">
+              <div class="col-sm-auto col-5">
+                 <div data-action="previous" data-toggle="tooltip" data-html="true" data-title="<strong>Hint:</strong> You can also <span class='d-inline d-sm-none'>tap the left screen side</span><span class='d-none d-sm-inline'>press the left keyboard arrow (<kbd>←</kbd>)</span> to go back." id="previous" class="float-left float-sm-none option"><i class="fas fa-chevron-circle-left"></i> Previous</div>
+              </div>
+              <div class="col-sm-auto col-2">
+                 <div id="open-navigation" data-toggle="tooltip" data-html="true" data-title="Give us a second!  We are loading all questions for you. <img height='17' alt='🐣' src='https://cdnjs.cloudflare.com/ajax/libs/emojione/2.2.7/assets/png/1f423.png'>" class="option"><i class="fas fa-list"></i> <span class="d-none d-sm-inline">Navigate</span></div>
+              </div>
+              <div class="col-sm-auto col-5">
+                 <div data-action="next" data-toggle="tooltip" data-html="true" data-title="<strong>Hint:</strong> You can also <span class='d-inline d-sm-none'>tap the right screen side</span><span class='d-none d-sm-inline'>press the right keyboard arrow (<kbd>→</kbd>)</span> to go next." id="next" class="float-right float-sm-none option">Next <i class="fas fa-chevron-circle-right"></i></div>
+              </div>
+            </div>
+          </div>
+      </div><!--footer-->
+    </div><!--container-fluid-->
+        <script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha384-xBuQ/xzmlsLoJpyjoggmTEz8OWUFM0/RC5BsqQBDX2v5cMvDHcMakNTNrHIW2I5f" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js" integrity="sha384-5tfO0soa+FisnuBhaHP2VmPXQG/JZ8dLcRL43IkJFzbsXTXT6zIX8q8sIT0VSe2G" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/1.8.6/showdown.min.js" integrity="sha384-TXBgD2Ei2XcYWHMF62BvcQr1yg9mxQXVHUDXgEzdtPH1Ez1ru8YV23tF/8mrHj5n" crossorigin="anonymous"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+        <script src="{% static 'js/toastr.js' %}"></script>
+        <script src="{% url 'js_reverse' %}?v=1.1"></script>
+        <script>
+    // Keys represent PKs.  Values represent global_sequences.
+    SESSION_QUESTIONS = {{ session_question_pks|safe }};
+    CATEGORY_SLUGS = '{{ category_slugs }}';
+    EXAM_PK = {{ session.exam.pk }};
+    SESSION_PK = {{ session.pk }};
+    SESSION_MODE = '{{ session.session_mode }}';
+    SESSION_IS_EXAMINABLE = {% if session.is_examinable %}true{% else %}false{% endif %};
+    USER_FIRST_NAME = "{{ user.profile.first_name }}";
+    IS_SHARED = {%if is_shared %}true{% else %}false{% endif %};
+
+    SESSION_QUESTION_PKS = Object.keys(SESSION_QUESTIONS).map(function(x){ return parseInt(x)})
+    SESSION_QUESTION_GLOBAL_SEQUENCES = SESSION_QUESTION_PKS.map(function(x){ return SESSION_QUESTIONS[x] }).sort(function(a, b){ return a - b});
+    // Sort SESSION_QUESTION_PKS per their global_sequences, if those
+    // do not include any null values.  Otherwise, sort per pks.
+    if (SESSION_QUESTION_GLOBAL_SEQUENCES.indexOf(null) != -1){
+      SESSION_QUESTION_PKS = SESSION_QUESTION_PKS.sort(function(a, b){return SESSION_QUESTIONS[a] - SESSION_QUESTIONS[b]});
+    } else {
+      SESSION_QUESTION_PKS = SESSION_QUESTION_PKS.sort(function(a, b){return a - b});
+    }
+    SESSION_QUESTION_TOTAL = SESSION_QUESTION_PKS.length;
+    PREVIOUS_HIGHLIGHTS = null;
+    PREVIOUS_CORRECTIONS = null;
+    MARKS = null;
+    ANSWERS = null;
+    STATS = null;
+    has_constructed_navigation = false;
+    shared_stat_timer = null;
+
+    showdown.setOption('headerLevelStart', 3);
+    showdown.setOption('simpleLineBreaks', true);
+    var converter = new showdown.Converter();
+
+
+    // Common selectors
+    $markButton = $("#mark");
+    $submitButton = $("#submit");
+
+    fetched_indexes = [];
+    toastr.options.positionClass = "toast-top-left";
+    toastr.options.preventDuplicates = true;
+    active_keys = {};
+    animation_events = 'webkitAnimationEnd mozAnimationEnd MSAnimationEnd oanimationend animationend';
+    was_solved_markup = '<i class="far fa-check-square"></i>';
+    is_marked_markup = '<i class="fas fa-flag"></i>';
+    wrong_answer_markup = '<i class="fas fa-times text-danger mx-1"></i>'
+    isTablet = navigator.userAgent.match(/iPad/i) != null || (navigator.userAgent.match(/Android/i) != null && navigator.userAgent.match(/Mobile/i) == null);
+    isMobile = navigator.userAgent.match(/iPhone/i) != null || (navigator.userAgent.match(/Android/i) != null && navigator.userAgent.match(/Mobile/i) != null);
+
+    function handleMarked(is_marked){
+        if (is_marked){
+            $markButton.addClass("marked");
+        } else {
+            $markButton.removeClass("marked");
+        }
+    }
+
+    function showQuestion(target, is_initial){
+      // 'target' could either be a question-sequence or url.  First,
+      // let's check sequence, then URL.
+      $current_question = $("#question-pool [data-question-sequence=\"" + target + "\"]")
+      if ($current_question.length){
+        if (is_initial){
+          history.replaceState({url: $current_question.data('url')}, '', $current_question.data('url'));
+        } else {
+          history.pushState({url: $current_question.data('url')}, '', $current_question.data('url'));
+        }
+        // Update Piwik URL
+        _paq.push(['setCustomUrl', window.location.href]);
+      } else {
+        $current_question = $("#question-pool [data-url=\"" + target + "\"]");
+      }
+
+      // If question is still unfound despite looking by URL,
+      // fetch it.
+      if (!$current_question.length) {
+        question_set_start_index = Math.floor(target / 50) * 50
+        fetchList(question_set_start_index, target);
+        return
+      }
+
+      // Add 'show' class to the current question
+      $current_question.addClass("show");
+      // Remove 'show' class from other questions
+      $(".question-body").not($current_question).removeClass('show');
+      // The following is intentionally a global variable.
+      current_sequence = $current_question.data('question-sequence');
+      $("#question-sequence").html(current_sequence);
+      var list_revision_url = $current_question.data('list-revision-url')
+      $("#question-pk").html($current_question.data('question-pk'))
+                       .attr('href', list_revision_url);
+
+      initializeInteractions();
+
+      // We will fetch questions in two cases:
+      //   1) If this is the initial question, fetch its question set.
+      //   2) If this is the initial question and 10 questions away or less from previous or next question set, fetch either.
+      //   3) If this is not the initial question, and we are 10 questions away from it, fetch the next question set.
+
+      var current_set_start_index = Math.floor(current_sequence / 50) * 50
+      var next_set_start_index = (Math.floor(current_sequence / 50) + 1) * 50
+      var previous_set_start_index = (Math.floor(current_sequence / 50) - 1) * 50
+      var previous_set_end_index = current_set_start_index - 1
+
+      if (next_set_start_index >= SESSION_QUESTION_TOTAL){
+        next_set_start_index = null;
+      }
+      if (0 > previous_set_start_index){
+        previous_set_start_index = null;
+      }
+
+      if (is_initial){
+        fetchList(current_set_start_index)
+      }
+
+      if (
+        (is_initial &&
+         next_set_start_index &&
+         current_sequence >= (next_set_start_index - 10)) ||
+         (!is_initial &&
+          next_set_start_index &&
+          current_sequence == (next_set_start_index - 10))
+        ){
+          fetchList(next_set_start_index)
+      }
+
+      if (
+        (is_initial &&
+         previous_set_start_index !== null &&
+         current_sequence <= (previous_set_end_index + 10)) ||
+         (!is_initial &&
+          previous_set_start_index !== null &&
+          current_sequence == (previous_set_end_index + 10))
+        ){
+          fetchList(previous_set_start_index)
+      }
+    }
+
+    window.onpopstate = function(event) {
+      if (event.state){
+        showQuestion(event.state.url)
+      }
+    };
+
+    function navigate() {
+        action = $(this).data('action');
+
+        // If no previous or no next, just return
+        if (current_sequence == 1 && action == 'previous'){
+          $("#question-sequence").addClass("animated flash").css('color', 'yellow');
+          $("#question-sequence").one(animation_events, function(){
+            $(this).removeClass().css('color', '');
+          });
+          return
+        } else if (current_sequence == SESSION_QUESTION_TOTAL && action == 'next'){
+          $("#question-total").addClass("animated flash").css('color', 'yellow');
+          $("#question-total").one(animation_events, function(){
+            $(this).removeClass().css('color', '');
+          });
+          return
+        }
+
+        if (action == 'next' ){
+          targeted_sequence = current_sequence + 1;
+        } else if (action == 'previous' ){
+          targeted_sequence = current_sequence - 1;
+        }
+
+        // If question sequence has not been loaded yet, prevent
+        // and highlight the question-loading spinner
+        $current_question = $("#question-pool [data-question-sequence=" + targeted_sequence + "]")
+        if (!$current_question.length){
+          _paq.push(['trackEvent', 'show_session', 'navigation', 'navigate-unloaded']);
+          toastr.warning("You're super fast, " + USER_FIRST_NAME  + "!  Give us a second to bring question #" + targeted_sequence.toString() + ".");
+          $("#question-loading").addClass("animated flash").css('color', 'yellow');
+          return
+        }
+
+        // Upon navigation, hide previous voting tooltips
+        $(".check, .answer-correction-notification, .opposing-users, .supporting-users").tooltip('hide');
+
+        showQuestion(targeted_sequence);
+
+    }
+
+    function toggleMarked() {
+        $("#mark-icon").hide();
+        $("#mark-loading").css('display', 'inline-block');
+        $.ajax({
+            url: Urls['exams:toggle_marked'](),
+            type: 'POST',
+            data: {session_pk: SESSION_PK,
+                   question_pk: $current_question.data('question-pk')},
+            cache: false,
+            success: function(data){
+               var question_pk = $current_question.data('question-pk');
+               var marked_index = MARKS.indexOf(question_pk);
+               $current_question.data('is-marked', data.is_marked);
+               handleMarked(data.is_marked);
+               if (data.is_marked){
+                 if (marked_index == -1){
+                   MARKS.push(question_pk)
+                 }
+                 _paq.push(['trackEvent', 'show_session', 'mark-question', 'add-mark']);
+               } else {
+                 if (marked_index != -1){
+                   MARKS.slice(marked_index, 1);
+                 }
+                 _paq.push(['trackEvent', 'show_session', 'mark-question', 'remove-mark']);
+               }
+
+               // If we have a navigation table, let's update it.
+               // Otherwise, let's save the DOM queries.
+               if (has_constructed_navigation){
+                 var $question_row = $('.navigate-row[data-question-sequence="' + current_sequence + '"]');
+                 if (data.is_marked){
+                   $question_row.find('td.is_marked').html(is_marked_markup);
+                   if (isSafari9()){
+                     FontAwesome.dom.i2svg({node: document.getElementById('navigation-table')});
+                   }
+                 } else {
+                   $question_row.find('td.is_marked').html("");
+                 }
+               }
+
+               $("#mark-icon").show();
+               $("#mark-loading").hide();
+
+            }
+        });
+    }
+
+    function toggleChoices() {
+        var $choice = $(this);
+        if ($choice.is(":checked")) {
+            // other sister choices to be removed
+            $otherChoices = $choice.closest('.question-body').find('.question-choice').not($choice);
+            // If a choice is checked, it is no longer striked.
+            if ($choice.closest('tr').find('.choice-text.strike').length){
+              $choice.closest('tr').find('.choice-text.strike').removeClass('strike');
+              submitHighlight();
+            }
+            $otherChoices.prop("checked", false);
+        } else {
+            $choice.prop("checked", false);
+        }
+    }
+
+    function removeHighlight(){
+      $(this).contents().unwrap();
+      submitHighlight();
+    }
+
+    function highlightText() {
+        var selection = window.getSelection().toString();
+        if (selection.length >= 3) {
+            var escapedSelection = $("<div>").text(selection).html();
+            var replacement = $('<span></span>').addClass('highlight').html(selection);
+            var replacementHtml = replacement.prop('outerHTML');
+            $(this).html($(this).html().replace(escapedSelection, replacementHtml));
+            // Bind only once
+            $current_question.off('click', '.highlight')
+                             .on('click', '.highlight', removeHighlight);
+            submitHighlight();
+        }
+
+    }
+
+    function updateCorrectionTooltip(html, choice_pk){
+      var pk_selector = "[data-choice-pk=" + choice_pk + "]";
+      var $choice_row = $(".question-body tr" + pk_selector);
+      $choice_row.data('has-correction', true).attr('data-has-correction', 'true');
+      var notification = '<i class="fas fa-exclamation-triangle text-warning answer-correction-notification mx-1"></i>';
+      $choice_row.find('.check').html(notification + html);
+    }
+
+    function initializeMnemonicInteractions(){
+      var question_pk = $current_question.data('question-pk');
+      $current_question.find(".like-mnemonic").off('click').on('click', function() {
+           action = $(this).data('action');
+           mnemonic_pk = $(this).data('mnemonic-pk');
+           url =  Urls['exams:contribute_mnemonics']() + "?" + $.param({question_pk: question_pk});
+
+           $.ajax({
+               url: url,
+               type: 'POST',
+               data: {'action': action,'mnemonic_pk':mnemonic_pk},
+               success: function(data){
+                 if (data.success == 1){
+                   toastr.success("Your vote was submitted.");
+                   $current_question.find(".mnemonics-content").html(data.mnemonic_html);
+                 } else {
+                   toastr.error(data.message)
+                 }
+               }
+           });
+      });
+      $current_question.off('click', ".delete-mnemonic").on( 'click', ".delete-mnemonic", function() {
+           var action = $(this).data('action'),
+               mnemonic_pk = $(this).data('mnemonic-pk'),
+               url = Urls['exams:contribute_mnemonics']() + "?" + $.param({question_pk: question_pk});
+
+           $.ajax({
+               url: url,
+               type: 'POST',
+               data: {'action': action,'mnemonic_pk':mnemonic_pk},
+               success: function(data){
+                 if (data.success == 1){
+                   toastr.success("Your mnemonic is deleted.");
+                   $current_question.find(".mnemonics-content").html(data.mnemonic_html);
+
+
+                 } else {
+                   toastr.error(data.message)
+                 }
+               }
+           });
+      });
+    }
+
+    function initializeCorrectionInteractions(){
+      // Here, we are selecting the SVG (i.e. '[data-fa-i2svg]')
+      // within the '.correct' cell
+      $current_question.off('click', '.correct [data-fa-i2svg]')
+                       .on('click', '.correct [data-fa-i2svg]', function () {
+          _paq.push(['trackEvent', 'show_session', 'answer_correction', 'click-correct']);
+          $("#correct-answer-modal").modal('show');
+          choice_pk = $(this).closest('tr').data('choice-pk');
+          url = Urls['exams:correct_answer']() + "?" + $.param({choice_pk: choice_pk});
+          $("#correct-answer-modal .modal-body").load(url);
+      });
+    }
+
+    function controlExplanation(){
+      var has_explanation = $current_question.find('.explanation-text').length ||
+                            $current_question.find('.explanation-figure').length ||
+                            $current_question.find('.explanation-reference-header').length,
+          was_solved = $current_question.data('was-solved'),
+          $explanation_container = $current_question.find(".explanation-container");
+
+      if (!was_solved || (SESSION_MODE == 'UNEXPLAINED' && !$('body').data('has-finished'))){
+        $explanation_container.hide()
+        $("#explain").hide()
+      } else if (has_explanation){
+        $explanation_container.show();
+        $("#explain").show().html('<i class="fas fa-cubes"></i> Improve this explanation!');
+      } else {
+        $explanation_container.hide();
+        $("#explain").show().html("Add an explanation!");
+      }
+    }
+
+    function controlMnemonic(){
+      var was_solved = $current_question.data('was-solved'),
+          has_mnemonics = $current_question.find('.mnemonic').length;
+
+      if (!was_solved || (SESSION_MODE == 'UNEXPLAINED' && !$('body').data('has-finished'))){
+        $(".mnemonics-container, #add-mnemonics").hide()
+      } else if( has_mnemonics ) {
+        $('#add-mnemonics').show().html('<i class="fas fa-book"></i> Add another mnemonic!');
+        $(".mnemonics-container").show();
+      } else {
+        $(".mnemonics-container").hide();
+        $('#add-mnemonics').show().html('<i class="fas fa-book"></i> Add the first mnemonic!');
+      }
+    }
+
+    function controlSessionFinished(){
+      // Check whether we have any unsolved questions. Changing
+      // data-has-finished to true will cause expalantions to show
+      // right away in UNEXPLAINED sessions.
+      // This also affects #results and #end buttons.
+      if (ANSWERS && Object.keys(ANSWERS).length >= SESSION_QUESTION_TOTAL){
+        $('body').data('has-finished', true).attr('data-has-finished', 'true');
+      }
+    }
+
+    function controlNavigationButtons(){
+      // In case this is a tablet, we do not want the tooltips
+      if (isTablet){
+        return
+      }
+
+      // We dispose in all cases to allow for changes, if indicated,
+      // to be applied.
+      $("#next").tooltip('dispose');
+
+      if (current_sequence == SESSION_QUESTION_TOTAL){
+        $("#next").css('cursor', 'not-allowed');
+        // select whatever button that's visible
+        button_name = $("#end:visible, #results:visible").html();
+        $("#next").tooltip({title: 'This is the last question.  You can click <kbd>' + button_name + '</kbd> to end this session.',
+                            html: true})
+      } else {
+
+        $("#next").tooltip();
+        $("#next").css('cursor', 'pointer');
+      }
+
+      if (current_sequence == 1){
+        $("#previous").css('cursor', 'not-allowed');
+      } else {
+        $("#previous").css('cursor', 'pointer');
+      }
+    }
+
+    function highlightActiveRow(){
+      // Mark row as active
+      var $question_row = $('.navigate-row[data-question-sequence="' + current_sequence + '"]');
+      $question_row.addClass('table-active');
+      $('.navigate-row').not($question_row).removeClass('table-active');
+    }
+
+    function disableHighlightInteractions(){
+      $current_question.off('click', '.highlight')
+      $current_question.find(".choice-text").off('click')
+      $current_question.find(".question-text").off('mouseup touchend')
+    }
+
+    function initializeInteractions() {
+        // $current_question is defined in showQuestion
+        $current_question.find('[data-toggle="tooltip"]').tooltip();
+
+        initializeCorrectionInteractions();
+        initializeMnemonicInteractions();
+        controlNavigationButtons();
+        handleMarked($current_question.data('is-marked'));
+
+        // If we have a navigation table, let's update it.
+        // Otherwise, let's save the DOM queries.
+        if (has_constructed_navigation){
+          highlightActiveRow();
+        }
+
+        // Show contributors as a tooltip
+        $("#contributors").tooltip('dispose');
+      	$("#contributors").off('click').click(function(){
+      	    _paq.push(['trackEvent', 'show_session', 'see-contributors', 'see-contributors']);
+      	});
+        $("#contributors").tooltip({html: true,
+                                    trigger: 'click',
+                                    title: $current_question.find(".tooltip-body").get(0)})
+
+        // Disable interaction if question was solved.
+
+        controlExplanation();
+        controlMnemonic();
+        was_solved = $current_question.data('was-solved');
+
+        if (was_solved){
+          $("#contribute,#add-mnemonics").show();
+          $submitButton.hide();
+          $current_question.find(".question-choice").prop("disabled", "disabled");
+        } else {
+            $("#contribute,#add-mnemonics").hide();
+            $submitButton.show();
+            $current_question.find(".question-choice").off('change').on('change', toggleChoices);
+        }
+
+        // We want to enable highlight in two cases:
+        // 1) If the session is examinable, and the current question was NOT solved.
+        // 2) If the session is not examinable.
+        if (SESSION_IS_EXAMINABLE && !was_solved || !SESSION_IS_EXAMINABLE){
+          // We turn off handlers first to ensure they don't get
+          // triggered more than once as the user navigates and
+          // binds the handlers.
+          $current_question.find(".question-text").off('mouseup touchend').on('mouseup touchend', highlightText);
+          // We use event delegation as highlights could be added
+          // after firing initializeInteractions.
+          $current_question.off('click', '.highlight')
+                           .on('click', '.highlight', removeHighlight);
+          $current_question.find(".choice-text").off('click').on('click', function() {
+              if (!$(this).hasClass("strike")){
+                 // If a choice is striked, it is no longer checked.
+                  $(this).closest("tr").find(".question-choice").prop('checked', false).trigger('change');
+              }
+              $(this).toggleClass("strike");
+              submitHighlight();
+          });
+        } else {
+          disableHighlightInteractions();
+        }
+    }
+
+    function submitHighlight(){
+      var stricken_choice_pks = $current_question.find(".choice-text.strike").map(function(){return $(this).closest('tr').data('choice-pk')}).get();
+      stricken_choice_pks = JSON.stringify(stricken_choice_pks);
+
+      var data = {best_revision_pk: $current_question.data('best-latest-revision-pk'),
+                  highlighted_text: $current_question.find(".question-text").html(),
+                  stricken_choice_pks: stricken_choice_pks,
+                  session_pk: SESSION_PK,
+                  question_pk: $current_question.data('question-pk')}
+
+      $.ajax({
+          url: Urls['exams:submit_highlight'](),
+          type: 'POST',
+          data: data
+      });
+    }
+
+    function submitChoice() {
+        $(this).hide();
+
+        // if question was previously solved, don't submit.
+        if ($current_question.data('was-solved')){
+          return
+        }
+        // Mark question as solved
+        // We also set was-solved using .attr() to change the DOM and
+        // be able to apply CSS.
+        $current_question.data('was-solved', true).attr('data-was-solved', 'true');
+
+
+        // If we have a navigation table, let's update it.
+        // Otherwise, let's save the DOM queries.
+        if (has_constructed_navigation){
+          var $question_row = $('.navigate-row[data-question-sequence="' + current_sequence + '"]');
+          $question_row.find('td.was_solved').html(was_solved_markup);
+          if (isSafari9()){
+            FontAwesome.dom.i2svg({node: document.getElementById('navigation-table')});
+          }
+        }
+
+        // Disable choices upon submission
+        $current_question.find(".question-choice").prop("disabled", "disabled")
+        // Disable interactions after submission.
+        controlExplanation();
+        controlMnemonic();
+        disableHighlightInteractions();
+        $("#contribute,#add-mnemonics").show();
+        $current_question.find(".question-text, .question-choice, .choice-text").off();
+
+        $checkedChoice = $current_question.find(".question-choice:checked");
+
+        // Do we have a choice, or was it skipped?
+        if ($checkedChoice.length) {
+            // We store choice pk at the row.
+            choice_pk = $checkedChoice.closest('tr').data("choice-pk");
+
+            // If there is a correction, we invite the user to vote:
+            var $choice_row = $checkedChoice.closest('tr');
+            if ($choice_row.data('is_right')){
+              STATS.correct_count += 1
+            } else {
+              STATS.incorrect_count += 1
+            }
+            var $correction_notification = $choice_row.find('.answer-correction-notification')
+            // Let's ensure that the support voting button is enabled
+            // (i.e. the user is not the submitter of the correction
+            // or a previous voter)
+            var $support_button = $choice_row.find('button.support-correction:enabled')
+            if ($correction_notification.length && $support_button.length){
+              $choice_row.find('.check').tooltip({template: '<div class="tooltip hint" role="tooltip"><div class="arrow"></div><div class="tooltip-inner"></div></div>',
+                                                  html: true,
+                                                  title:"<strong>Are you sure that this is the right answer?</strong>  Vote to support this correction! <img height=\'17\' src=\'https://cdnjs.cloudflare.com/ajax/libs/emojione/2.2.7/assets/png/1f64a.png\'>",
+                                                  placement: 'right',
+                                                  trigger: 'manual'}).tooltip('show');
+              setTimeout(function(){$choice_row.find('.check').tooltip('hide')}, 5000);
+            }
+        } else {
+            STATS.skipped_count += 1
+            choice_pk = null;
+        }
+
+        updateSharedProgressBar(SESSION_PK, STATS);
+
+        var question_pk = $current_question.data('question-pk')
+        ANSWERS[question_pk] = choice_pk;
+        controlSessionFinished();
+
+        var data = {session_pk: SESSION_PK,
+                    question_pk: question_pk,
+                    choice_pk: choice_pk}
+
+        $.ajax({
+            url: Urls['exams:submit_answer'](),
+            type: 'POST',
+            data: data,
+            cache: false,
+            success: function(data) {
+                if (data.success) {
+                    if (!choice_pk){
+                        toastr.warning('You skipped this question');
+                    }
+                } else {
+                  toastr.error(data.message);
+                }
+            }
+        });
+
+    }
+
+    function updateSizes() {
+      // The question row should take all the space not taken by other elements
+      row_height = $("#container").height() - $('#top-info').height() - $('#top-options').height();
+      $("#question-row").css({
+        'padding-bottom': $('#footer').height(),
+        'min-height': row_height
+      });
+    }
+
+    function initializeKeyboard(){
+      $(document).keydown(function(e){
+        // record active keys so we can handle a combination of keys
+        active_keys[e.which] = true;
+
+        // check which key we got
+        if (active_keys[37]) { // left key
+          $("#previous").trigger('click');
+        	_paq.push(['trackEvent', 'show_session', 'navigation', 'keyboard-previous']);
+        } else if (active_keys[39] || active_keys[32]) {  // right key or space
+          e.preventDefault() // prevent space scroll.
+          $("#next").trigger('click');
+        	_paq.push(['trackEvent', 'show_session', 'navigation', 'keyboard-next']);
+        } else if (active_keys[18] && active_keys[77]) { // alt + m
+          _paq.push(['trackEvent', 'show_session', 'mark-question', 'keyboard-mark']);
+          $markButton.trigger('click');
+        } else if (active_keys[18] && active_keys[85]) { // alt + u
+          _paq.push(['trackEvent', 'show_session', 'find-pending', 'keyboard-pending']);
+          if (SESSION_MODE == 'SOLVED' || SESSION_MODE == 'INCOMPLETE'){
+            return
+          }
+          var question_sequence = $('.question-body[data-was-solved=false]').data('question-sequence');
+          if (question_sequence){
+            showQuestion(question_sequence);
+          } else {
+            toastr.success("Yay!  No pending in this session.");
+          }
+        } else if (active_keys[17] && active_keys[13]) { // ctrl + enter
+          _paq.push(['trackEvent', 'show_session', 'mark-question', 'keyboard-submit']);
+          $submitButton.trigger('click');
+        } else if (active_keys[17] && active_keys[38] || active_keys[17] && active_keys[40]){ // ctrl + up or ctrl + down
+          e.preventDefault() // prevent arrow scroll.
+          total_choices = $current_question.find(".question-choice").length
+          $checked_choice = $current_question.find(".question-choice:enabled:checked")
+          if ($checked_choice.length){
+            choice_index = $current_question.find(".question-choice").index($checked_choice);
+            if (active_keys[38] && choice_index == 0){ // Up while at top
+              // We are at the topmost choice, we cannot go up.
+              return
+            } else if (active_keys[40] && choice_index == (total_choices -1)){ // Up while at bottom
+              // We are at the bottom most choice, we cannot go futher down
+              return
+            } else {
+              if (active_keys[40]){ // down
+                _paq.push(['trackEvent', 'show_session', 'navigation', 'keyboard-down']);
+                target_index = choice_index + 1
+              } else if (active_keys[38]){ // up
+                _paq.push(['trackEvent', 'show_session', 'navigation', 'keyboard-up']);
+                target_index = choice_index - 1;
+              }
+            }
+          } else {
+            // If no choice is already checked, arrows always select the first choice.
+            target_index = 0;
+          }
+          target_choice = $current_question.find('.question-choice:enabled').get(target_index)
+          $(target_choice).prop('checked', true).trigger('change');
+        } else {
+          // If no matching keyboard shortcut, do not execuse
+          // upcoming code snippet
+          return
+        }
+      });
+      $(document).keyup(function (e) {
+          // remove keys that are no longer active;
+          delete active_keys[e.which];
+      });
+    }
+
+    function constructNavigationTable(){
+      // the navigation modal is special in that it is closed by
+      // keyboard and by clicking the backdrop
+      $('#navigate-modal').modal({show: false});
+      $("#open-navigation").off('click').click(function(){
+        _paq.push(['trackEvent', 'show_session', 'navigation', 'open-navigation']);
+        $('#navigate-modal').modal('show')
+      });
+
+      // move to the position of the active row
+      $('#navigate-modal').on('shown.bs.modal', function (){
+         $(this).animate({
+             scrollTop: $(".navigate-row.table-active").position().top
+         }, 500);
+      });
+
+      // Let's not use jQuery.  It's too slow for constructing massive elements.
+      tbody = document.getElementById("navigation-tbody")
+      tbody_content = ""
+
+      for (var question_sequence = 1; question_sequence <= SESSION_QUESTION_PKS.length; question_sequence++) {
+         var question_index = question_sequence - 1;
+         var question_pk = SESSION_QUESTION_PKS[question_index];
+         var was_solved = ANSWERS[question_pk] !== undefined ? was_solved_markup : '<i class="far fa-square"></i>';
+         // In case MARKS was not populated yet, we can safely skip
+         // it.
+         if (MARKS){
+           var is_marked = MARKS.indexOf(question_pk) != -1 ? is_marked_markup : '';
+         }
+         var row = "<tr class='navigate-row text-center' data-question-sequence='" + question_sequence.toString() + "'><td>" + question_sequence.toString() + "</td><td class='d-sm-table-cell d-none'>" + question_pk.toString() + "</td><td class='d-sm-table-cell d-none is_marked'>" + is_marked + "</td><td class='was_solved'>" + was_solved +"</td></tr>";
+         tbody_content += row;
+      }
+
+      tbody.innerHTML = tbody_content;
+
+      if (isSafari9()){
+        FontAwesome.dom.i2svg({node: document.getElementById('navigation-table')})
+      }
+
+      $("#navigation-table").find('.navigate-row').click(function(){
+        _paq.push(['trackEvent', 'show_session', 'navigation', 'click-navigate-row']);
+        targeted_sequence = $(this).data('question-sequence');
+        showQuestion(targeted_sequence);
+      });
+      highlightActiveRow();
+      has_constructed_navigation = true;
+    }
+
+    function fetchCorrections(){
+      $.ajax({method: 'get',
+              url: Urls['correction-list'](),
+              data: {format: 'json',
+                     session_pk: SESSION_PK },
+              success: function(data){
+                  PREVIOUS_CORRECTIONS = data;
+                  $.each(PREVIOUS_CORRECTIONS, function(index, correction){
+                    updateCorrectionTooltip(correction.html, correction.choice_id)
+                  });
+                  initializeCorrectionInteractions();
+              }
+      });
+    }
+
+    function fetchAnswers(){
+      $.ajax({method: 'get',
+              url: Urls['answer-list'](),
+              data: {format: 'json',
+                     session_pk: SESSION_PK },
+              success: function(data){
+                  ANSWERS = {};
+                  STATS = {correct_count: 0,
+                           incorrect_count: 0,
+                           skipped_count: 0,};
+                  data.map(function(item){
+                    if (item.choice === null){
+                      STATS.skipped_count += 1
+                      ANSWERS[item.question_id] = null;
+                    } else if (item.choice.is_right === true){
+                      STATS.correct_count += 1
+                      ANSWERS[item.question_id] = item.choice.id;
+                    } else if (item.choice.is_right === false){
+                      STATS.incorrect_count += 1
+                      ANSWERS[item.question_id] = item.choice.id;
+                    }
+                  });
+
+                  // We can only prepare questions after we get
+                  // ANSWERS, so let's do it now!
+                  prepareQuestions($('.question-body'));
+                  // Some interactions depend on whether the question
+                  // was solved or not.  That's why we only
+                  // initialize interactions after we have prepared
+                  // the questions.
+                  controlSessionFinished();
+                  updateSharedProgressBar(SESSION_PK, STATS);
+                  initializeInteractions();
+                  $("#open-navigation").tooltip('dispose').css('cursor', 'pointer').click(function(){
+                    constructNavigationTable();
+
+                    $(this).trigger('click');
+                  });
+              }
+      });
+    }
+
+    function fetchMarks(){
+      $.ajax({method: 'get',
+              url: Urls['marked-list'](),
+              data: {format: 'json',
+                     exam_pk: EXAM_PK },
+              success: function(data){
+                  MARKS = data.map(function(item){ return item.id });
+
+                  $('.question-body').each(function(){
+                    var $question = $(this);
+                    var question_pk = $question.data('question-pk');
+                    applyMark($question, question_pk);
+                  });
+              }
+      });
+    }
+
+
+    function fetchHighlights(){
+      $.ajax({method: 'get',
+              url: Urls['highlight-list'](),
+              data: {format: 'json',
+                     session_pk: SESSION_PK },
+              success: function(data){
+                  PREVIOUS_HIGHLIGHTS = {};
+                  data.map(function(item){
+                    PREVIOUS_HIGHLIGHTS[item.revision.question_id] = {revision_id: item.revision.id,
+                                                             highlighted_text: item.highlighted_text,
+                                                             stricken_choices: item.stricken_choices};
+                  });
+
+                  $('.question-body').each(function(){
+                    $question = $(this);
+                    prepareHighlights($question);
+                  });
+              }
+      });
+    }
+
+    function fetchSharedStats(){
+      $.ajax({method: 'get',
+              url: Urls['exams:get_shared_session_stats'](),
+              data: {format: 'json',
+                     session_pk: SESSION_PK },
+              success: function(data){
+                if (data.success){
+                  for (var index in data.stats){
+                    var stat = data.stats[index];
+                    updateSharedProgressBar(stat.pk, stat)
+                  }
+                  if (!$('.progress[data-has-finished="false"]').length){
+                    clearSharedStatTimer();
+                  }
+                } else {
+                  toastr.error(data.message)
+                }
+              }
+      });
+    }
+
+    function updateSharedProgressBar(session_pk, stat){
+      if (!IS_SHARED){
+        return
+      }
+
+      var $progress_container = $('.progress[data-pk="' + session_pk +'"]')
+
+      if (session_pk != SESSION_PK){
+        $progress_container.attr('data-has-finished', stat.has_finished.toString());
+      } else if (session_pk == SESSION_PK && SESSION_MODE != 'EXPLAINED'){
+        stat.count = stat.correct_count + stat.incorrect_count + stat.skipped_count
+      }
+
+      // Only detail the breakdown if the session mode is EXPLAINED.
+      // Otherwise, only show a generic count.
+      if (SESSION_MODE == 'EXPLAINED'){
+        var correct_percentage = Math.round(stat.correct_count / SESSION_QUESTION_TOTAL * 100) + '%';
+        var incorrect_percentage = Math.round(stat.incorrect_count / SESSION_QUESTION_TOTAL * 100) + '%';
+        var skipped_percentage = Math.round(stat.skipped_count / SESSION_QUESTION_TOTAL * 100) + '%';
+        $progress_container.find('.progress-bar.bg-success').css('width', correct_percentage).attr('aria-valuenow', stat.correct_count);
+        $progress_container.find('.progress-bar.bg-danger').css('width', incorrect_percentage).attr('aria-valuenow', stat.incorrect_count);
+        $progress_container.find('.progress-bar.bg-warning').css('width', skipped_percentage).attr('aria-valuenow', stat.skipped_count);
+        $("#shared-session-" + session_pk).tooltip({html: true, title: '<ul class="mb-0 pl-3 sharer-name"><li>Correct: ' + stat.correct_count + ' (' + correct_percentage +')</li><li>Incorrect: ' + stat.incorrect_count + ' (' + incorrect_percentage + ')</li><li>Skipped: ' + stat.skipped_count + ' (' + skipped_percentage +')</li></ul>'})
+      } else {
+        var width = stat.count / SESSION_QUESTION_TOTAL * 100 + '%';
+        $progress_container.find('.progress-bar.bg-success').css('width', width).attr('aria-valuenow', stat.count);
+      }
+
+    }
+
+    function isSafari9(){
+      // This is a workaround for iOS 9.x browsers that
+      // cannot render dynmically added FontAwesome icons.
+      return ((navigator.userAgent.indexOf('iPhone') != -1 ||
+               navigator.userAgent.indexOf('iPad') != -1) &&
+              navigator.userAgent.indexOf('OS 9_') != -1) ||
+             (navigator.userAgent.indexOf('Mac OS') != -1 &&
+              navigator.userAgent.indexOf('Version/9') != -1 &&
+              navigator.userAgent.indexOf('Safari/') != -1)
+    }
+
+    function fetchList(fetch_list_index, question_sequence){
+      // If the given index was previously fetched, skip!
+      if (fetched_indexes.indexOf(fetch_list_index) != -1){
+        return
+      }
+
+      var current_targets = SESSION_QUESTION_PKS.slice(fetch_list_index, fetch_list_index + 50);
+      var current_target_str = current_targets.join(',');
+      $("#question-loading").show();
+      $.ajax({method: 'get',
+              url: Urls['exams:list_partial_session_questions'](CATEGORY_SLUGS, EXAM_PK),
+              data: {pks: current_target_str},
+              success: function(data){
+                fetched_indexes.push(fetch_list_index);
+
+                $questions = $(data.html);
+
+                // Do not bother with filtering except if we know
+                // that we need it.
+                if (current_targets.indexOf(initial_question_pk) != -1){
+                  $filtered_questions = $questions.filter(function(){
+                    var $question = $(this);
+                    var question_pk = $question.data('question-pk');
+                    return question_pk != initial_question_pk
+                  });
+                } else {
+                  $filtered_questions = $questions
+                }
+
+                prepareQuestions($filtered_questions);
+
+                $("#question-pool").append($filtered_questions);
+
+                // If we have corrections, add them to currently
+                // targetted questions
+                if (PREVIOUS_CORRECTIONS){
+                  for (index in PREVIOUS_CORRECTIONS){
+                    correction = PREVIOUS_CORRECTIONS[index]
+                    if (current_targets.indexOf(correction.question_id) == -1){
+                      continue
+                    }
+                    updateCorrectionTooltip(correction.html, correction.choice_id);
+                  }
+                }
+
+                if (isSafari9()){
+                  FontAwesome.dom.i2svg({node: document.getElementById('question-pool')})
+                }
+
+                if (question_sequence){
+                  showQuestion(question_sequence);
+                }
+                $("#question-loading").hide();
+              }
+      });
+    }
+
+    function prepareHighlights($question) {
+      // If we do not have the PREVIOUS_HIGHLIGHTS yet, we cannot
+      // prepare the highlights.
+      if (PREVIOUS_HIGHLIGHTS === null){
+        return
+      }
+
+      var question_pk = $question.data('question-pk')
+      var highlight = PREVIOUS_HIGHLIGHTS[question_pk];
+      if (highlight !== undefined){
+        best_revision_pk = $question.data('best-latest-revision-pk');
+        if (best_revision_pk == highlight.revision_id){
+          // If the highlighted question text is not empty, include
+          // it.
+          if (highlight.highlighted_text){
+            $question.find('.question-text').html(highlight.highlighted_text);
+          }
+          $.each(highlight.stricken_choices, function(index){
+            choice_pk = highlight.stricken_choices[index]
+            $question.find('tr[data-choice-pk=' + choice_pk + '] .choice-text').addClass('strike');
+          });
+        }
+      }
+    }
+
+    function prepareChoices($question) {
+      // This shuffle choices and checked the previously selected
+      // choice and randomizes choice rows.
+
+      // If we do not have the ANSWERS yet, we cannot prepare the
+      // choices.
+      if (ANSWERS === null){
+        return
+      }
+
+      // First: Tag the previously selected choice:
+      var question_pk = $question.data('question-pk')
+      var choice_pk = ANSWERS[question_pk];
+      if (choice_pk !== undefined){
+        $question.data('was-solved', true).attr('data-was-solved', 'true')
+        $question.find('.question-choice').attr('disabled', true)
+
+        // If question was not skipped (not null)
+        if (choice_pk){
+          $checkbox = $question.find('tr[data-choice-pk=' + choice_pk + '] input[type="checkbox"]');
+          $checkbox.prop('checked', true)
+        }
+      } else {
+        $question.data('was-solved', false).attr('data-was-solved', 'false')
+      }
+
+      // Second: randomizes choice rows
+      $tbody = $question.find('.choice-table tbody')
+      $choice_rows = $tbody.find('tr');
+      $choice_rows.detach()
+      // Based on https://stackoverflow.com/a/2450976
+      var currentIndex = $choice_rows.length, temporaryValue, randomIndex;
+
+      // While there remain elements to shuffle...
+      while (0 !== currentIndex) {
+
+        // Pick a remaining element...
+        randomIndex = Math.floor(Math.random() * currentIndex);
+        currentIndex -= 1;
+
+        // And swap it with the current element.
+        temporaryValue = $choice_rows[currentIndex];
+        $choice_rows[currentIndex] = $choice_rows[randomIndex];
+        $choice_rows[randomIndex] = temporaryValue;
+      }
+
+      $tbody.append($choice_rows)
+      // We use the 'unrandomized' class to hide the choices until
+      // they are randomized to avoid confusing layout changes
+      $tbody.removeClass('unprepared')
+
+    }
+
+    function applyMark($question, question_pk){
+      if (MARKS.indexOf(question_pk) != -1){
+        $question.data('is-marked', true).attr('data-is-marked', 'true')
+        // If the marked question is currently being shown, highlight
+        // the mark button.
+        if ($question.hasClass('show')){
+          handleMarked(true)
+        }
+      } else {
+        $question.data('is-marked', false).attr('data-is-marked', 'false')
+      }
+    }
+
+    // Client-side work-up
+    function prepareQuestions($questions){
+      $questions.each(function(){
+        var $question = $(this),
+            question_pk = $question.data('question-pk'),
+            question_text = $question.find('.question-text').html(),
+            explanation_text = $question.find('.explanation-text').html();
+
+        // Parse markdown
+        var question_html = converter.makeHtml(question_text);
+        $question.find('.question-text').html(question_html);
+
+        if (explanation_text !== undefined){
+          var explanation_html = converter.makeHtml(explanation_text);
+          $question.find('.explanation-text').html(explanation_html);
+        }
+
+        prepareChoices($question);
+        prepareHighlights($question);
+
+        // Add sequence
+        var question_sequence = SESSION_QUESTION_PKS.indexOf(question_pk) + 1;
+        $question.data('question-sequence', question_sequence).attr('data-question-sequence', question_sequence);
+
+        // Add url data tags
+        var list_revision_url = Urls['exams:list_revisions'](CATEGORY_SLUGS, EXAM_PK, question_pk);
+        var question_url = Urls['exams:show_session'](CATEGORY_SLUGS, EXAM_PK, SESSION_PK, question_pk);
+        $question.data('list-revision-url', list_revision_url).attr('data-list-revision-url', list_revision_url);
+        $question.data('url', question_url).attr('data-url', question_url);
+
+        if (SESSION_MODE == 'SOLVED' || SESSION_MODE == 'INCOMPLETE'){
+          $question.data('was-solved', true).attr('data-was-solved', 'true')
+          $question.find('.question-choice').attr('disabled', true)
+        }
+
+        if (MARKS){
+          applyMark($question, question_pk);
+        }
+      });
+
+      $question_pool = $('#question-pool')
+      if (!$question_pool.hasClass('choices-were-animated')){
+        $question_pool.addClass('choices-were-animated')
+        $current_question.find('tbody').addClass('animated fadeIn').one(animation_events, function(){$(this).removeClass()});
+      }
+    }
+
+    function setSharedStatTimer(){
+      if (!shared_stat_timer && document.hasFocus() && $('.progress[data-has-finished="false"]').length){
+        shared_stat_timer = setInterval(fetchSharedStats, 5000);
+      }
+    }
+
+    function clearSharedStatTimer(){
+        if (shared_stat_timer){
+          clearInterval(shared_stat_timer);
+          shared_stat_timer = null;
+        }
+    }
+
+    // Show mobile sliders in tablets
+    if (isTablet){
+      $('.mobile-slide').removeClass('d-lg-none');
+      $('#question-col').removeClass('col-lg-12 px-lg-5');
+    }
+
+    // Do not show keyboard-hint in tablets or mobile phones.
+    if (isTablet || isMobile){
+      $('#keyboard-hint').addClass('d-none');
+    }
+
+    if (IS_SHARED){
+      $(window).on('focus', function(){
+        if ($('.progress[data-has-finished="false"]').length){
+          fetchSharedStats();
+        }
+        setSharedStatTimer();
+      });
+      $(window).on('blur', clearSharedStatTimer);
+    }
+
+    $(function() {
+        var copy_share = new ClipboardJS('#share-session-copy');
+        copy_share.on('success', function(e){
+          _paq.push(['trackEvent', 'show_session', 'share', 'click-copy']);
+          $(e.trigger).tooltip('show'); setTimeout(function(){$(e.trigger).tooltip('hide')}, 1000)
+        });
+
+        $initial_question = $('.question-body.show');
+
+        // Set sequence for initial question
+        initial_question_pk = $initial_question.data('question-pk');
+        initial_question_sequence = SESSION_QUESTION_PKS.indexOf(initial_question_pk) + 1;
+        $initial_question.attr('data-question-sequence', initial_question_sequence).data('question-sequence', initial_question_sequence)
+
+        // Show initial question
+        showQuestion(initial_question_sequence, true);
+
+        $("#question-total").html(SESSION_QUESTION_TOTAL);
+        $("#question-sequence").html(initial_question_sequence);
+
+        initializeKeyboard();
+
+        // Depending on user agent, we control tooltip initalization.
+        // Note that this must NOT be overridden anywhere in the
+        // code.  Tooltip intialization always has to be limited to
+        // specific subelements of a context
+        if (isTablet){
+          // In tablets, we don't want to show tooltips on the
+          // 'Mark' button as well as navigation buttons.
+          $('[data-toggle="tooltip"]').not("#next, #previous, #mark").tooltip();
+        } else if (isMobile) {
+          // In mobile phones, we don't want to show a tooltip on the
+          // 'Mark' button
+          $('[data-toggle="tooltip"]').not($markButton).tooltip();
+        } else {
+          $('[data-toggle="tooltip"]').tooltip();
+        }
+
+        help_me_tooltip = $("#help-me-tooltip").get(0);
+        $("#help-me").tooltip({html: true,
+                               trigger: 'click',
+                               title: help_me_tooltip})
+         $("#help-me").click(function(){
+           _paq.push(['trackEvent', 'show_session', 'click-get-help', 'click-get-help']);
+         });
+
+         setting_tooltip = $("#setting-tooltip").get(0);
+         $("#settings").tooltip({html: true,
+                                 placement: 'bottom',
+                                 trigger: 'click',
+                                 title: setting_tooltip})
+          $("#settings").click(function(){
+            _paq.push(['trackEvent', 'show_session', 'click-settings', 'click-settings']);
+          });
+
+          share_tooltip = $("#share-tooltip").get(0);
+          $("#share").tooltip({html: true,
+                               trigger: 'click',
+                               title: share_tooltip})
+           $("#share").click(function(){
+             $(this).removeClass('emphasized')
+             _paq.push(['trackEvent', 'show_session', 'share', 'click-share']);
+           });
+
+          $("#theme-select").change(function(){
+            $option = $(this).find('option:selected');
+            $(":root").css({'--primary-background-color': $option.data('primary-background-color'),
+                            '--secondary-background-color': $option.data('secondary-background-color'),
+                            '--tertiary-background-color': $option.data('tertiary-background-color'),
+                            '--primary-font-color': $option.data('primary-font-color'),
+                            '--secondary-font-color': $option.data('secondary-font-color'),
+                            '--tertiary-font-color': $option.data('tertiary-font-color'),
+                            '--highlight-background': $option.data('highlight-background'),
+                            '--highlight-color': $option.data('highlight-color'),
+                            '--table-active': $option.data('table-active'),
+                            '--table-hover': $option.data('table-hover')})
+          });
+          $("#save-theme").click(function(){
+            $.ajax({url: Urls['exams:update_session_theme'](),
+                    type: 'POST',
+                    data: {session_theme_pk: $("#theme-select").val()},
+                    success: function(data){
+                      if (data.success){
+                        $("#settings").tooltip('hide')
+                        toastr.success("Your theme was updated!")
+                      } else {
+                        toastr.error(data.message)
+                      }
+                    }
+            });
+          });
+
+         fetchAnswers();
+         fetchHighlights();
+         fetchCorrections();
+         fetchMarks();
+         updateSizes();
+         $(window).resize(updateSizes);
+
+         if (IS_SHARED){
+           fetchSharedStats();
+           setSharedStatTimer();
+         }
+
+         $(".mobile-slide").click(function(){
+          if ($(this).hasClass('previous')){
+            $("#previous").trigger('click');
+      	    _paq.push(['trackEvent', 'show_session', 'navigation', 'slide-previous']);
+          } else if ($(this).hasClass('next')){
+            $("#next").trigger('click');
+      	    _paq.push(['trackEvent', 'show_session', 'navigation', 'slide-next']);
+          }
+        });
+
+        $("#end").click(function(){
+          $("#confirm-end-modal a.submit-button").prop("href", Urls['exams:show_session_results'](CATEGORY_SLUGS, EXAM_PK, SESSION_PK));
+          $("#confirm-end-modal").modal('show');
+        });
+        $submitButton.click(submitChoice);
+        $('#previous, #next').click(navigate);
+        $markButton.click(toggleMarked);
+
+
+        // Actions are delegated are defined here.
+        $(document).tooltip({selector: '.answer-correction-notification',
+                             html: true,
+                             trigger: 'click',
+                             title: function(){
+                                 $tooltip = $(this).closest("td").find('.answer-correction-tooltip-body').clone(true);
+                                 $tooltip.find('[data-toggle="tooltip"]').tooltip();
+                                 return $tooltip.get(0)
+                             }
+        });
+        $(document).on('show.bs.tooltip', '.answer-correction-notification', function(){
+            $('.answer-correction-notification').not(this).tooltip('hide');
+            _paq.push(['trackEvent', 'show_session', 'answer_correction', 'click-notification']);
+        });
+        $(document).on('click', '.delete-correction', function(){
+          choice_pk = $(this).data('choice-pk');
+          url = Urls['exams:delete_correction']() + "?" + $.param({choice_pk: choice_pk})
+          pk_selector = "[data-choice-pk=" + choice_pk + "]";
+          var $choice_row = $current_question.find("tr" + pk_selector);
+          $choice_row.data('has-correction', false).attr('data-has-correction', 'false');
+          $('.answer-correction-notification').tooltip('hide');
+          $(this).tooltip('hide');
+
+          $.ajax({
+              url: url,
+              type: 'POST',
+              success: function(data){
+                if (data.success == 1){
+                  toastr.success("Your correction was removed.")
+                  if (data.correction_html){ // if we have a new submitter
+                    updateCorrectionTooltip(data.correction_html, choice_pk);
+                  } else {
+                    // Before there was a correction, it was marked as a wrong answer
+                    $choice_row.find('.check').html(wrong_answer_markup);
+                  }
+                } else {
+                  toastr.error(data.message)
+                }
+              }
+          });
+        });
+
+        $(document).on('click', ".support-correction, .oppose-correction", function(){
+          action = $(this).data('action');
+          choice_pk = $(this).data('choice-pk');
+          url = Urls['exams:correct_answer']() + '?' + $.param({choice_pk: choice_pk})
+          _paq.push(['trackEvent', 'show_session', 'answer_correction', 'delete-notification']);
+
+          $.ajax({
+              url: url,
+              type: 'POST',
+              data: {'action': action},
+              success: function(data){
+                if (data.success == 1){
+                  toastr.success("Your vote was submitted.")
+                  updateCorrectionTooltip(data.correction_html, choice_pk);
+                } else {
+                  toastr.error(data.message)
+                }
+              }
+          });
+        });
+
+            // initialize project edit modal
+        $('#modify-question-modal, #explain-question-modal,#add-mnemonics-modal').modal({
+          keyboard: false,
+          backdrop: 'static',
+          show    : false,
+        });
+
+        $("#contribute").click(function () {
+            $("#modify-question-modal").modal('show');
+            url = Urls['exams:contribute_revision']() + "?" + $.param({question_pk: $current_question.data('question-pk')})
+            $("#modify-question-modal .modal-body").load(url);
+        });
+        // initialize project edit modal
+        $("#explain, a.explain").click(function () {
+            $("#explain-question-modal").modal('show');
+            url = Urls['exams:contribute_explanation']() + "?" + $.param({question_pk: $current_question.data('question-pk')});
+            $("#explain-question-modal .modal-body").load(url);
+        });
+
+        $("#add-mnemonics").click(function () {
+            $("#add-mnemonics-modal").modal('show');
+            url =  Urls['exams:contribute_mnemonics']() + "?" + $.param({question_pk: $current_question.data('question-pk')});
+            $("#add-mnemonics-modal .modal-body").load(url);
+        });
+
+        modal_selectors = '#explain-question-modal, #modify-question-modal, #correct-answer-modal, #add-mnemonics-modal';
+
+        $(modal_selectors).on("hidden.bs.modal", function(){
+          initializeKeyboard();
+        });
+
+        $(modal_selectors).on("show.bs.modal", function(){
+          $(document).off('keydown keydup');
+        });
+
+
+    });
+
+        </script>
+        {% include 'exams/partials/normal_values.html' %}
+
+        {% with modal_id='confirm-end-modal' is_small=True confirm_link=True modal_title="End session" modal_content="<i class='text-danger fas fa-sign-out-alt'></i> Are you sure you want to end this session, and mark unsubmitted questions as unsolved?" %}
+            {% include "exams/modals/common_modal_v4.html" %}
+        {% endwith %}
+
+        {% with modal_id='modify-question-modal' no_footer=True modal_title="Edit the question" %}
+             {% include "exams/modals/common_modal_v4.html" %}
+        {% endwith %}
+
+        {% with modal_id='explain-question-modal' no_footer=True modal_title="Explain the answer" %}
+            {% include "exams/modals/common_modal_v4.html" %}
+        {% endwith %}
+
+        {% with modal_id='correct-answer-modal' no_footer=True modal_title="Correct the answer" %}
+            {% include "exams/modals/common_modal_v4.html" %}
+        {% endwith %}
+
+        {% with modal_id='navigate-modal' no_footer=True modal_title="Navigate session" modal_content="<table id='navigation-table' class='table table-sm table-hover'><thead class='text-center thead-dark'><tr><th>Sequence</th><th class='d-sm-table-cell d-none'>ID</th><th class='d-sm-table-cell d-none'>Marked?</th><th>Answered?</th></tr></thead><tbody id='navigation-tbody'></tbody></table>" %}
+            {% include "exams/modals/common_modal_v4.html" %}
+        {% endwith %}
+
+        {% with modal_id='add-mnemonics-modal' no_footer=True modal_title="Add a mnemonic" %}
+            {% include "exams/modals/common_modal_v4.html" %}
+        {% endwith %}
+
+        <div class="d-none">
+          <div id="share-tooltip">
+            <p>Share your session with a friend.  By sharing, you will be answering the same questions, and tracking each other's progress:</p>
+            {% if session.parent_session %}
+              <input id="share-session-url" value="{{ request.scheme }}://{{ request.get_host }}{% url 'exams:share_session' category_slugs session.exam.pk session.parent_session.pk session.parent_session.secret_key %}" readonly>
+            {% else %}
+              <input id="share-session-url" value="{{ request.scheme }}://{{ request.get_host }}{% url 'exams:share_session' category_slugs session.exam.pk session.pk session.secret_key %}" readonly>
+            {% endif %}
+            <button data-trigger="manual" data-title="Copied!" data-toggle="tooltip" class="btn" id="share-session-copy" data-clipboard-target="#share-session-url">
+                <i class="fas fa-clipboard"></i>
+            </button>
+          </div>
+          <div id="setting-tooltip">
+            <p>You spend a lot of time in Fudul, so make it feel home!</p>
+            <select id="theme-select" class="form-control">
+              {% for session_theme in session_themes %}
+              <option data-primary-background-color="{{ session_theme.primary_background_color|default:default_session_theme.primary_background_color }}"
+                      data-secondary-background-color="{{ session_theme.secondary_background_color|default:default_session_theme.secondary_background_color }}"
+                      data-tertiary-background-color="{{ session_theme.tertiary_background_color|default:default_session_theme.tertiary_background_color }}"
+                      data-primary-font-color="{{ session_theme.primary_font_color|default:default_session_theme.primary_font_color }}"
+                      data-secondary-font-color="{{ session_theme.secondary_font_color|default:default_session_theme.secondary_font_color }}"
+                      data-tertiary-font-color="{{ session_theme.tertiary_font_color|default:default_session_theme.tertiary_font_color }}"
+                      data-highlight-background="{{ session_theme.highlight_background|default:default_session_theme.highlight_background }}"
+                      data-highlight-color="{{ session_theme.highlight_color|default:default_session_theme.highlight_color }}"
+                      data-table-active="{{ session_theme.table_active|default:default_session_theme.table_active }}"
+                      data-table-hover="{{ session_theme.table_hover|default:default_session_theme.table_hover }}"
+                      value="{{ session_theme.pk }}"
+                      {% if session_theme == user.profile.session_theme or user.profile.session_theme is None and session_theme.name == 'Ocean' %}selected{% endif %}>
+                      {{ session_theme.name }}
+              </option>
+              {% endfor %}
+            </select>
+            <button id="save-theme" class="mt-2 mb-1 btn btn-primary"><i class="far fa-save"></i> Save</button>
+          </div>
+          <div id="help-me-tooltip">
+            <a data-toggle="tooltip" data-html="true" title="<div style='direction: rtl;'> من حقك تعاتبني<br>من حقك تحاسبني<br>لكن مش من حقك<br>فى عواطفي تكدبني🎶</div>" target="_blank" rel="noopener" href="https://soundcloud.com/yaya26/4sdgcoaj9r6p"><img src="{% static 'img/monerh/reach-out.png' %}" class="img-fluid"></a>
+            <p>Fudul is made better by your feedback and ideas!  Contact us right now:</p>
+            <div class="row justify-content-center">
+              <div class="col-12">
+                <a rel="noopener" target="_blank" href="https://t.me/FudulBot"><i class="fab fa-2x fa-telegram"></i><br>Telegram Live Chat</a>
+              </div>
+            </div>
+            <div class="row justify-content-center mt-3 mb-2">
+              <div class="col-12">
+                <a href="mailto:support@fudulbank.com"><i class="fas fa-2x fa-envelope"></i><br>Support Email</a>
+              </div>
+            </div>
+          </div>
+        </div>
+    </body>
+</html>
