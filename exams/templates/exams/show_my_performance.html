@@ -1,0 +1,161 @@
+{% extends 'base_new.html' %}{% load static exam_utils %}
+
+{% block title %}Fudul | My performance {% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'css/toastr.min.css' %}">
+{% endblock %}
+{% block breadcrumb %}
+      <li class="breadcrumb-item"><a href="{% url 'index' %}">Home page</a></li>
+      <li class="breadcrumb-item active">Performance</li>
+{% endblock %}
+
+{% block header_title %}
+<h1>My performance</h1>
+{% endblock %}
+
+
+{% block content %}
+
+<div class="card">
+	<div class="card-body">
+		<div class="card-block">
+{% if exams.exists %}
+      <div class="chart-container mb-2" style="height: 300px; width: 400px; max-width: 100%;">
+          <canvas id="performance-chart"></canvas>
+      </div>
+      <h2>Performance per exam</h2>
+      <p>Here, you can see your overall perfromance.  You can click individual exams to see more details.  <em>"Correct"</em> counts questions correctly answered by you at least one time.  <em>"Incorrect"</em> counts questions incorrectly answered by you and never answed correctly.  <em>"Skipped"</em> counts questions that were shown, but skipped and never answered by you.  Deleted sessions are <strong>not</strong> counted.</p>
+      <table style="width: 100%;" class="datatable table table-striped table-bordered dt-responsive">
+        <thead>
+          <tr>
+            <th class="all">Exam</th>
+            <th data-toggle="tooltip">Performance</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for exam in exams %}
+            {% get_user_question_stats exam user 'total' as total_count %}
+            {% get_user_question_stats exam user 'incorrect' as incorrect_count %}
+            {% get_user_question_stats exam user 'skipped' as skipped_count %}
+            <tr data-pk="{{ exam.pk }}">
+              <td class="exam-name"><a href="{% url 'exams:show_my_performance_per_exam' exam.pk %}">{{ exam.name }}</a> <span data-toggle="tooltip" title="Number of questions answered." class="font-small-2">({{ total_count }})</span></td>
+              {% with target=exam total=total_count %}
+                {% include 'exams/partials/performance_column.html' %}
+              {% endwith %}
+              <td>
+                <div class="dropdown">
+                  <button type="button" class="btn btn-sm btn-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><i class="ft-settings"></i> Actions</button>
+                  <div class="dropdown-menu">
+                    <a class="dropdown-item" href="{% url 'exams:show_my_performance_per_exam' exam.pk %}"><i class="ft-grid"></i> See details</a>
+                    {% if skipped_count %}
+                      <button data-url="{% url 'exams:create_session_automatically' exam.category.get_slugs exam.pk %}" data-selector="SKIPPED" class="dropdown-item automatic-creation"><i class="ft-rotate-ccw"></i> Re-examine on <strong>skipped</strong> {{ exam.name }} questions <span class="font-small-2">({{ skipped_count }})</span></button>
+                    {% endif %}
+                    {% if incorrect_count %}
+                      <button data-url="{% url 'exams:create_session_automatically' exam.category.get_slugs exam.pk %}" data-selector="INCORRECT" class="dropdown-item automatic-creation"><i class="ft-rotate-ccw"></i> Re-examine on <strong>incorrect</strong> {{ exam.name }} questions <span class="font-small-2">({{ incorrect_count }})</span></button>
+                    {% endif %}
+                    <a data-pk="{{ exam.pk }}" class="dropdown-item confirm-delete-exam"><i class="ft-trash-2"></i> Forgive</a>
+                  </div>
+                </div>
+              </td>
+
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+{% else %}
+      <div class="card-text">
+        <p>You have not taken any sessions yet!  You can start by <strong><a href="{% url 'exams:list_meta_categories' %}">exploring the exams</a></strong> and creating one.</p>
+      </div>
+{% endif %}
+		</div><!--card-block-->
+	</div><!--card-body-->
+</div><!--card-->
+{% endblock %}
+{% block customscript %}
+{% include 'partials/import_datatables.html' %}
+<script src="{% static 'js/toastr.js' %}"></script>
+
+{% with modal_id='confirm-delete-exam-sessions-modal' is_small=True modal_content="<strong>Are you sure you want us to forgive you the sessions you took under this exam?</strong> By asking for forgiveness, you will be adjusting your performance statistics and reclaiming some 'used questions'." %}
+    {% include "exams/modals/common_edit_modal.html" %}
+{% endwith %}
+
+{% include 'exams/partials/performance_chart.html' %}
+
+<script>
+$(function () {
+    $('[data-toggle="tooltip"]').tooltip()
+    table = $("table.datatable").DataTable({paging: false, info: false});
+
+    $('.confirm-delete-exam').tooltip({title: "<div style='direction: rtl'>أنا غلطان ومتأسف<br>يا ريت تسمعني وتصالح<br>تراني خلاص متلهف<br>لكلمة صلح نتصالح 🎶</div>",
+                                        html: true})
+
+
+    $deleteConfirmationButton = $("#confirm-delete-exam-sessions-modal .submit-button")
+    $('tbody').on('click', '.confirm-delete-exam',function () {
+        $(this).tooltip("hide");
+        row = table.row(this).node();
+        var pk = $(this).data('pk');
+        var name = $(row).find('.exam-name').text();
+        $deleteConfirmationButton.data('name', name).data('pk', pk);
+        $("#confirm-delete-exam-sessions-modal .modal-title").html("Forgive me the " + name + " exam");
+        $("#confirm-delete-exam-sessions-modal").modal('show');
+    });
+
+    $deleteConfirmationButton.click(function () {
+        _paq.push(['trackEvent', 'show-my-performance', 'delete-exam-sessions', 'delete-exam-sessions']);
+        /* get some values from elements on the page: */
+  			var pk = $(this).data('pk');
+        var name = $(this).data('name');
+        /* Send the data using post */
+        $.ajax({url: "{% url 'exams:delete_session' %}",
+                data: {deletion_type: 'exam',
+                       pk: pk},
+                type: 'POST',
+                cahe: 'false',
+                success: function (data) {
+    		            if (data.success == 1) {
+    		                // show success message (using toastr)
+    		                toastr.info("The " + name + " exam was forgiven.");
+
+    										row = table.row("tr[data-pk=" +  pk + "]");
+    										row.remove().draw(false);
+    										$("#confirm-delete-exam-sessions-modal").modal('hide');
+    		            } else {
+    		                toastr.error(data.message);
+    		            }
+    		        }
+        });
+  	});
+
+    $('tbody').on('click', '.automatic-creation',function () {
+        var selector = $(this).data('selector');
+
+        if (selector == 'SKIPPED'){
+           _paq.push(['trackEvent', 'show-my-performance', 'create-automatic-session', 'automatic-skipped-in-exam']);
+        }  else if (selector == 'INCORRECT'){
+           _paq.push(['trackEvent', 'show-my-performance', 'create-automatic-session', 'automatic-incorrect-in-exam']);
+        }
+
+        // Disable all automatic creation buttons upon firing one.
+        $('.automatic-creation').addClass('disabled').attr('disabled', true);
+
+        var url = $(this).data('url');
+        toastr.success("A new session is being created.  Give us a second!");
+        $.ajax({url: url,
+                data: {selector: selector},
+                method: 'POST',
+                success: function(data){
+                    if (data.success == 1) {
+                        window.location.href = data.url;
+                    } else {
+                      toastr.error(data.message);
+                    }
+                }
+        });
+    });
+});
+</script>
+
+{% endblock %}
