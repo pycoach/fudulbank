@@ -1,0 +1,69 @@
+{% extends 'base_new.html' %}{% load static bootstrap3 %}
+{% block title %}Fudul | {{ revision.question.exam.name }}: Edit question #{{ revision.question.pk }}{% endblock %}
+
+{% block header_title %}
+<h1>{{ revision.question.exam.name }}: Edit question #{{ revision.question.pk }}</h1>
+{% with is_list_active=True %}
+{% include 'exams/partials/exam_editor_buttons.html' %}
+{% endwith %}
+{% endblock %}
+
+{% block breadcrumb %}
+      <li class="breadcrumb-item"><a href="{% url 'index' %}">Home page</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'exams:list_meta_categories' %}">Exams</a></li>
+			{% for parent_category in exam.category.get_parent_categories %}
+			<li class="breadcrumb-item"><a href="{% url 'exams:show_category' parent_category.get_slugs %}">{{ parent_category.name }}</a></li>
+			{% endfor %}
+			<li class="breadcrumb-item"><a href="{% url 'exams:show_category' exam.category.get_slugs %}">{{ exam.category.name }}</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'exams:create_session' exam.category.get_slugs exam.pk %}">{{ exam.name }}</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'exams:list_questions' exam.category.get_slugs exam.pk %}">List</a></li>
+      <li class="breadcrumb-item active">Edit question #{{ revision.question.pk }}</li>
+{% endblock %}
+
+
+{% block content %}
+<div class="card">
+	<div class="card-body">
+		<div class="card-block">
+{% include 'exams/partials/question_form.html' %}
+		</div>
+	</div>
+</div>
+{% endblock %}
+{% block customscript %}
+{{ question_form.media }}
+    <script src="{% static 'js/jquery.formset.js' %}"></script>
+    <script src="{% static 'js/jquery.autogrowtextarea.min.js' %}"></script>
+    <script type="text/javascript">
+    $(function(){
+        $('[data-toggle="tooltip"]').tooltip();
+        $('#exam-type select').change(function() {
+        if ($('#exam-type select option[value=OSPE]:checked').length) {
+            $('#figure').show();
+        } else {
+            $('#figure').hide();
+        }
+        });
+
+        $('#choice_formset input[type=checkbox]').change(function(){
+            $('#choice_formset input[type=checkbox]').not(this).prop('checked', false);
+        });
+        $("textarea").autoGrow();
+        // add formset controls
+        $("#choice_formset .form-container").formset({
+            prefix: '{{ revisionchoiceformset.prefix }}',
+            addText: 'Add a Choice',
+            deleteText: 'Delete',
+            addCssClass: 'add-row btn btn-xs btn-primary',
+            deleteCssClass: 'delete-row btn btn-xs btn-danger',
+        });
+        // FIXME
+
+{#        $('#choice_formset div.checkbox label').append( "<span></span>" );#}
+
+        });
+    </script>
+{% with category_pk=revision.question.exam.category.pk  parent_category_pk=revision.question.exam.category.parent_category.pk %}
+  {% include 'exams/partials/dynamic_sidebar.html' %}
+{% endwith %}
+{% endblock %}
