@@ -1,0 +1,57 @@
+{% extends 'base_new.html' %}{% load static %}
+{% block title %}Fudul | Get help{% endblock %}
+
+{% block header_title %}
+	<h1>Get help</h1>
+{% endblock %}
+
+{% block breadcrumb %}
+      <li class="breadcrumb-item"><a href="{% url 'index' %}">Home page</a></li>
+			<li class="breadcrumb-item active">Get help</li>
+{% endblock %}
+
+{% block content %}
+
+<div class="card">
+	<div class="card-body">
+		<div class="card-block text-center">
+			<img data-toggle="tooltip" data-html="true" data-delay='{"show": 100, "hide": 3000}' data-title="<div style='direction: rtl;'><a target='_blank' href='https://soundcloud.com/ahmed-magdi-tawfeek/lpqou9sykaev'>كلمني يا قمر<br>فهمني ياقمر🎶</a></div>" src="{% static 'img/monerh/contact-us.png' %}" height="300">
+			<p>If you have any suggestion or question regarding Fudul, you can immediately reach us through:</p>
+  	</div>
+    <div class="card-block">
+      <div class="row justify-content-center">
+  			<div class="col-12 col-sm-6 col-md-4 col-lg-3">
+  				<div class="card text-center">
+  					<div class="card-body">
+  						<i class="font-large-3 fa fa-telegram"></i>
+  						<div class="card-block">
+  							<h4 class="card-title mt-2"><a target="_blank" href="https://t.me/FudulBot">Telegram live chat</a></h4>
+                <p class="font-small-3 text-justify">Our support team is immediately available to help you get ready for your next exam!  Try our live chatting support.</p>
+  						</div>
+  					</div>
+  				</div>
+  			</div>
+  			<div class="col-12 col-sm-6 col-md-4 col-lg-3">
+  				<div class="card text-center">
+  					<div class="card-body">
+  						<i class="font-large-3 ft-mail"></i>
+  						<div class="card-block">
+  							<h4 class="card-title mt-2"><a href="mailto:support@fudulbank.com">Email Support</a></h4>
+                <p class="font-small-3 text-justify">Our support team is ready to answer your email, and to get your questions answered!  Email us right now!</p>
+  						</div>
+  					</div>
+  				</div>
+  			</div>
+  		</div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block customscript %}
+<script>
+$(function () {
+		$('[data-toggle="tooltip"]').tooltip();
+});
+</script>
+{% endblock %}
