@@ -1,0 +1,324 @@
+{% extends 'base_new.html' %}{% load static bootstrap3 exam_utils cache %}
+{% block head %}
+    <style>
+    .mode li
+    {
+        display: inline;
+        list-style-type: none;
+        padding-right: 20px;
+    }
+    .card-block li{
+         list-style-type: none;
+    }
+    .card-body li a {
+        font-weight: bold;
+        margin-top: auto
+    }
+
+    .select2-container--default .select2-selection--multiple .select2-selection__choice {
+        background-color: #0072d6;
+        color: #fff;
+        border-radius: 3px;
+        cursor: default;
+        float: left;
+        margin-right: 2px;
+        margin-top: 2px;
+        padding: 7px 12px;
+    }
+
+    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove{
+        color: white;
+    }
+    h5{
+        margin-top: 3%;
+        margin-bottom: 2%;
+    }
+
+    /*to show the number of total questions next to the number_of_questions field*/
+    #id_number_of_questions{
+        display: inline-block;
+    }
+    </style>
+{% endblock %}
+
+{% block title %}Fudul | Start Session in {{ exam.name }}{% endblock %}
+
+
+{% block header_title %}
+<h1>{{ exam.name }} Session</h1>
+{% include 'exams/partials/exam_editor_buttons.html' %}
+{% endblock %}
+
+{% block breadcrumb %}
+      <li class="breadcrumb-item"><a href="{% url 'index' %}">Home page</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'exams:list_meta_categories' %}">Exams</a></li>
+			{% for parent_category in exam.category.get_parent_categories %}
+			<li class="breadcrumb-item"><a href="{% url 'exams:show_category' parent_category.get_slugs %}">{{ parent_category.name }}</a></li>
+			{% endfor %}
+			<li class="breadcrumb-item"><a href="{% url 'exams:show_category' exam.category.get_slugs %}">{{ exam.category.name }}</a></li>
+      <li class="breadcrumb-item active">{{ exam.name }}</li>
+{% endblock %}
+
+{% block content %}
+
+<div class="row">
+   <div class="col-md-8">
+
+     <div class="card">
+       <div class="card-header">
+         <h4 class="card-title">Start a new session</h4>
+         {% if exam|can_user_edit:user %}
+         <div class="heading-elements">
+           {% if exam.credits %}
+           <a id ='credits' data-url='{% url 'exams:show_credits' exam.pk %}' class="btn btn-primary btn-sm"><i class="icon-medal-star position-left"></i> Credits</a>
+           {% endif %}
+         </div>
+         {% endif %}
+       </div>
+       <div class="card-body">
+        <div id="form-panel" class="card-block">
+          {% bootstrap_form_errors sessionform %}
+          <form method="post" id="start-session-form">
+          {% csrf_token %}
+          <h5>Session mode:</h5>
+          <div id="session-mode" class='mode'>
+            {{ sessionform.session_mode }}
+          </div>
+
+          <h5>Type of questions:</h5>
+          <div class='mode'>
+            {{ sessionform.question_filter }}
+          </div>
+{% cache 1200 session_options exam.pk %}
+          <div class="row">
+{% if sessionform.subjects %}
+            <div class="col-sm-6">
+                <div class="form-group has-feedback has-feedback-left">
+                    <label class="control-label"><h5>Subjects</h5></label>
+                    <select id="meta-subjects" class="alpaca-control form-control" name="">
+                    <option value="ALL">All</option>
+                    <option value="CUSTOM">Custom</option>
+                    </select>
+                    <div class="form-control-feedback">
+
+                    </div>
+                </div>
+
+                <div id="specific-subjects" style="display: none">
+                   {{ sessionform.subjects }}
+                    <div class="form-control-feedback">
+                    </div>
+                </div>
+            </div>
+      {% endif %}
+      {% if sessionform.sources %}
+            <div class="col-sm-6">
+                <div class="form-group has-feedback has-feedback-left">
+                    <label class="control-label"><h5>Sources</h5></label>
+                    <select id="meta-sources" class="alpaca-control form-control" name="">
+                    <option value="ALL">All</option>
+                    <option value="CUSTOM">Custom</option>
+                    </select>
+                    <div class="form-control-feedback">
+    {#icon is here #}
+                    </div>
+                </div>
+
+                <div id="specific-sources" style="display: none">
+                    {{ sessionform.sources }}
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+{% if sessionform.exam_types %}
+    <div class="form-group has-feedback has-feedback-left">
+        <label class="control-label"><h5>Exam type:</h5></label>
+        {% bootstrap_field sessionform.exam_types show_label=False  %}
+    </div>
+{% endif %}
+{% endcache %}
+    <label class="control-label"><h5>Number of questions</h5></label>
+    <div class="row">
+        <div class="col-12">
+          <div class="form-group has-feedback has-feedback-left" style="display: inline-block;">
+{% bootstrap_field sessionform.number_of_questions show_label=False  %}
+          </div>
+          <strong>/ <span id="question-count">{{ question_count }}</span> </strong>
+      </div>
+    </div>
+    <button data-delay='{"show": 100, "hide": 3000}' data-toggle="tooltip" data-html="true" data-title="<a target='_blank' href='https://youtu.be/VZ2HcRl4wSk'><img title='You can do it!' class='img-fluid' src='{% static 'img/monerh/start-session.png' %}'></a>" id="session-submit" type="submit" class="btn btn-primary btn-block btn-lg">Start Session <i class="icon-circle-right2 position-right"></i></button>
+    <input name="exam_pk" type="hidden" value="{{ exam.pk }}">
+    </form>
+  </div><!--card-block-->
+ </div><!--card-body-->
+</div> <!--card-->
+</div><!--col-->
+
+    <div class="col-md-4">
+        <div id='session-list-div' class="card-content" style="display: none">
+            <div class="card-body">
+                    <h4 class="card-title">Pending Sessions</h4>
+            </div>
+
+            <ul class="list-group list-group-flush">
+                            {% for session in latest_sessions %}
+                                <div id="session-list">
+                                {% if not session.has_finished %}
+                             <a  href="{% url 'exams:show_session' exam.category.get_slugs exam.pk session.pk %}" >
+                             <li class="list-group-item">
+                               <span class="badge badge-default badge-pill bg-info float-right">{{ session.pk }}</span>
+                                {% if not session.session_mode == 'SOLVED'%} <strong>{{ session.get_unused_questions.count }}</strong> Q left {% endif %}<strong>Subjects:</strong>{% if session.subjects.count == 1 %}{{ session.subjects.first.name }}{% elif not session.exam.subject_set.exists %} {{ session.exam.name }}{% else %} Multiple {% endif %}
+                             </a>
+                             </li>
+                                {% endif %}
+                                </div>
+                            {% endfor %}
+            </ul>
+        </div>
+    </div><!--col-->
+</div> <!--row-->
+
+
+{% endblock %}
+{% block customscript %}
+{{ sessionform.media }}
+    <link rel="stylesheet" href="{% static 'css/toastr.min.css' %}">
+    <script src="{% static 'js/toastr.js' %}"></script>
+    <script>
+
+    function controlSessionModes(){
+        if ($('input[value=INCOMPLETE]:checked').length) {
+          $("#session-mode input").attr({disabled: true,
+                                         name: false,
+                                         checked: false,
+                                         required: false});
+          $hidden_mode = $("<input>").attr({type: 'hidden',
+                                           name: 'session_mode',
+                                           value: 'INCOMPLETE',
+                                           id: 'hidden-session-mode'});
+          $("#session-mode").append($hidden_mode);
+        } else {
+          $("#session-mode input").attr({name: 'session_mode',
+                                          required: true,
+                                          disabled: false});
+          $("#hidden-session-mode").remove();
+        }
+    }
+
+    function controlMetaSelection(field, is_changed){
+      meta_selector = '#meta-' + field;
+      specific_selector = '#specific-' + field;
+      real_selector =  '#id_' + field;
+      if (!is_changed && $(real_selector).find(":selected").length) {
+        // This applies if the page was preloaded selections in the 'real' selector
+        $(specific_selector).show();
+        $(meta_selector).find('[value=CUSTOM]').prop('selected', true);
+      } else if ($(meta_selector).val() == 'CUSTOM'){
+        // This applies upon manual selection of 'CUSTOM' meta option.
+        $(specific_selector).show();
+      } else if ($(meta_selector).val() == 'ALL'){
+        // This applies upon manual selection of 'ALL' meta option.
+        $(specific_selector).hide();
+        $(real_selector).val('').trigger('change');
+      }
+    }
+
+    function updateTotalQuestions(){
+      var formData = new FormData($("#start-session-form")[0]);
+      $.ajax({
+          url: "{% url 'exams:get_selected_question_count' exam.pk %}",
+          type: 'POST',
+          data: formData,
+          cache: false,
+          contentType: false,
+          processData: false,
+          success: function (data) {
+              if (data.success == 1) {
+                $("#id_number_of_questions").attr('max', data.count);
+                $("#question-count").html(data.count);
+                if (data.count == 0){
+                  toastr.warning("No questions match your selection");
+                  $("#session-submit").prop("disabled", true)
+                } else {
+                  $("#session-submit").prop("disabled", false)
+                }
+              } else {
+                  toastr.warning("There was an issue! " + data.message);
+              }}
+      });
+    }
+
+    $(function() {
+        $('[data-toggle="tooltip"]').tooltip();
+
+        $("#id_session_mode li:nth-child(1) label").tooltip({title: "This shows the right answer with its explanation after submitting each question."})
+        $("#id_session_mode li:nth-child(2) label").tooltip({title: "This hides the right answer and explanation, and only shows them at the end."})
+        $("#id_session_mode li:nth-child(3) label").tooltip({title: "This turns off exam mode, and it will show questions with the explanation and right answer right away."})
+
+        $("#id_question_filter li:nth-child(1) label").tooltip({title: "Select all complete and valid questions in the {{ exam.name }} exam."})
+        $("#id_question_filter li:nth-child(2) label").tooltip({title: "Select questions that you have never had in a session."})
+        $("#id_question_filter li:nth-child(3) label").tooltip({title: "Select questions that you have only answered incorrectly and never correctly in the {{ exam.name }} exam."})
+        $("#id_question_filter li:nth-child(4) label").tooltip({title: "Select questions that you have had, but skipped and never answered in the {{ exam.name }} exam."})
+        $("#id_question_filter li:nth-child(5) label").tooltip({title: "Select questions that you have marked in the {{ exam.name }} exam."})
+        $("#id_question_filter li:nth-child(6) label").tooltip({title: "Select incomplete questions in the {{ exam.name }} exam."})
+
+
+        updateTotalQuestions();
+        $("input, select").not('#id_number_of_questions, input[name=session_mode]').change(updateTotalQuestions);
+
+        controlSessionModes();
+        $("input[name=question_filter]").change(controlSessionModes);
+
+        // disable question filters with zero counts
+        $("input[name=question_filter]").each(function(){
+          label = $(this).closest("label").text()
+          regex = /\((\d+)\)/
+          count = label.match(regex)[1]
+          if (count == 0){
+            $(this).attr('disabled', true);
+          }
+        })
+
+
+        // If the form was pre-filled with subject or source selections.
+        controlMetaSelection('subjects');
+        controlMetaSelection('sources');
+        // If the meta subject or source selection field changes
+        $('#meta-subjects').change(function() {
+          controlMetaSelection('subjects', true)
+        });
+        $('#meta-sources').change(function() {
+            controlMetaSelection('sources', true)
+        });
+
+        // initialize credit modal
+        $('#show-credit-modal').modal({
+          keyboard: false,
+          backdrop: 'static',
+          show    : false,
+        });
+        $("#credits").click(function () {
+            var url = $(this).data('url');
+            $("#show-credit-modal").modal('show');
+            $("#show-credit-modal .modal-title").attr("display",'none');
+            $("#show-credit-modal .modal-body").load(url);
+
+        });
+        if( $.trim( $('#session-list').html() ).length ) {
+            $('#session-list-div').show();
+        };
+        $('#id_question_filter label').append( "<span></span>" );
+
+
+    });
+</script>
+{% with modal_id='show-credit-modal' no_footer=True %}
+    {% include "exams/modals/common_edit_modal.html" %}
+{% endwith %}
+
+{% with category_pk=exam.category.pk  parent_category_pk=exam.category.parent_category.pk %}
+  {% include 'exams/partials/dynamic_sidebar.html' %}
+{% endwith %}
+
+{% endblock %}
