@@ -1,0 +1,346 @@
+{% extends 'base_new.html' %}{% load static %}
+{% block title %}Fudul | Indicators{% endblock %}
+
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/1.31.2/plotly.min.js" integrity="sha384-pEbvKAAHroDnU/rb2+IiUrslRtrsAGTaQNZjaFWCY3d/h5FlaWxqMkhh8MX4m0dQ" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.19.3/moment.min.js" integrity="sha384-8xuC0/BWqiPX72DT7LJqj+QiH5eYVT5KsUOewB/DmXi7KPPEdt4Td3xu3lg+slER" crossorigin="anonymous"></script>
+{% endblock %}
+
+{% block header_title %}
+<h1>Indicators</h1>
+{% endblock %}
+
+{% block breadcrumb %}
+      <li class="breadcrumb-item"><a href="{% url 'index' %}">Home page</a></li>
+      <li class="breadcrumb-item active">Indicators</li>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <h2 id="great-health">The Great Health Metric</h2>
+  </div>
+	<div class="card-body">
+    <div class="card-block">
+      <p>To track Fudul's health, we follow our <em>Great Health Metric</em>, which consists of two things: <strong>active users</strong> (defined as: users who created at least one new session) and <strong>average answers</strong> (defined as: answers submitted with a choice, i.e. not skipped, divided by number of active users).</p>
+      <div id="great-metric" style="width:100%; height:600px;"></div>
+      <p>Are we successful at retaining Fudul's users?  The <em>Retention Metric</em> shows the number of users who are active for this long of days.  This curve exculdes the top active 5% of users.  This curve is updated every day at 00:00 (Riyadh time).</p>
+      <div id="retention-metric" style="width:100%; height:600px;"></div>
+		</div><!--card-block-->
+	</div><!--card-body-->
+</div><!--card-->
+
+<div class="card">
+  <div class="card-header">
+    <h2 id="colleges">College participation indicators</h2>
+  </div>
+	<div class="card-body">
+		<div class="card-block">
+      <table id="college-table" class="table table-striped table-bordered datatable dt-responsive">
+          <thead>
+              <tr>
+                  <th data-priority="1">College</th>
+                  <th data-priority="2">Institution</th>
+                  <th data-priority="1"># users</th>
+              </tr>
+          </thead>
+          <tbody>
+             {% for college in colleges %}
+                  <tr>
+                      <td><a href="{% url 'show_college_indicators' college.pk %}">{{ college.name }}</a></td>
+                      <td>{{ college.institution.name }}</td>
+                      <td>{{ college.profile_set.count }}</td>
+                </tr>
+             {% endfor %}
+          </tbody>
+      </table>
+		</div><!--card-block-->
+	</div><!--card-body-->
+</div><!--card-->
+
+<div class="card">
+  <div class="card-header">
+    <h2 id="teams">Team indicators</h2>
+  </div>
+	<div class="card-body">
+		<div class="card-block">
+				<table id="team-table" class="table table-striped table-bordered datatable dt-responsive">
+				    <thead>
+				        <tr>
+				            <th data-priority="1">Team</th>
+                    <th data-priority="1">Members</th>
+                    <th data-priority="2">Exams</th>
+                    <th data-toggle="tooltip" title="Total number of questions under team categories" data-priority="3"># questions</th>
+				        </tr>
+				    </thead>
+				    <tbody>
+				       {% for team in teams %}
+				            <tr>
+				                <td><a href="{% url 'show_team_indicators' team.pk %}">{{ team.name }}</a></td>
+				                <td>{{ team.members.count }}</td>
+                        <td>
+                            {% for exam in team.exams.all %}
+                            <a href="{{ exam.get_absolute_url }}">{{ exam }}</a>{% if not forloop.last %}, {% endif %}
+                            {% empty %}
+                            None
+                            {% endfor %}
+                        </td>
+                        <td>{{ team.get_question_count }}</td>
+			            </tr>
+				       {% endfor %}
+				    </tbody>
+				</table>
+		</div><!--card-block-->
+	</div><!--card-body-->
+</div><!--card-->
+
+<div class="card">
+  <div class="card-header">
+    <h2 id="exams">Exam indicators</h2>
+  </div>
+	<div class="card-body">
+		<div class="card-block">
+				<table id="exam-table" class="table table-striped table-bordered datatable dt-responsive">
+				    <thead>
+				        <tr>
+				            <th data-priority="1">Exam</th>
+                    <th data-toggle="tooltip" title="Number of users who have ever created a session" data-priority="2"># users</th>
+                    <th data-priority="4">Category</th>
+                    <th data-priority="3"># questions</th>
+                    <th data-priority="5"># pending duplicates</th>
+				        </tr>
+				    </thead>
+				    <tbody>
+				       {% for exam in exams %}
+               {% with category_slugs=exam.category.get_slugs %}
+				            <tr>
+				                <td><a href="{% url 'show_exam_indicators' exam.pk %}">{{ exam.name }}</a></td>
+                        <td>{{ exam.get_user_count }}</td>
+				                <td><a href="{{ exam.category.get_absolute_url }}">{{ exam.category }}</a></td>
+                        <td><a href="{% url 'exams:list_questions_by_selector' category_slugs exam.pk 'all' %}">{{ exam.question_set.count }}</a></td>
+                        <td><a href="{% url 'exams:list_duplicates' category_slugs exam.pk %}">{{ exam.get_pending_duplicates.count }}</a></td>
+			            </tr>
+               {% endwith %}
+				       {% endfor %}
+				    </tbody>
+				</table>
+		</div><!--card-block-->
+	</div><!--card-body-->
+</div><!--card-->
+
+<div class="card">
+  <div class="card-header">
+    <h2 id="features">Feature indicators</h2>
+  </div>
+	<div class="card-body">
+		<div class="card-block">
+				<table id="feature-table" class="table table-striped table-bordered datatable">
+				    <thead>
+				        <tr>
+				            <th data-priority="1">Feature</th>
+                    <th data-toggle="tooltip" title="Number of users using this feature and their precentage of the active users, defined as users have have ever created a session."># users (%)</th>
+				        </tr>
+				    </thead>
+				    <tbody>
+		          <tr>
+                <td>Sharing sessions</td>
+                <td data-order="{{ users_sharing_sessions }}">{{ users_sharing_sessions }} ({% widthratio users_sharing_sessions users_active 100 %}%)</td>
+	            </tr>
+              <tr>
+                <td>Customizing session theme</td>
+                <td data-order="{{ users_customizing_theme }}">{{ users_customizing_theme }} ({% widthratio users_customizing_theme users_active 100 %}%)</td>
+	            </tr>
+              <tr>
+                <td>Users voting on corrections</td>
+                <td data-order="{{ users_voting}} ">{{ users_voting }} ({% widthratio users_voting users_active 100 %}%)</td>
+	            </tr>
+				    </tbody>
+				</table>
+		</div><!--card-block-->
+	</div><!--card-body-->
+</div><!--card-->
+
+<div class="card">
+  <div class="card-header">
+    <h2 id="sources">Source indicators</h2>
+  </div>
+	<div class="card-body">
+		<div class="card-block">
+				<table id="source-table" class="table table-striped table-bordered datatable dt-responsive">
+				    <thead>
+				        <tr>
+				            <th data-priority="1">Source</th>
+                    <th>Category</th>
+                    <th># total questions</th>
+                    <th data-toggle="tooltip" title="Questions added in last 30 days" data-priority="2"># recent questions</th>
+				        </tr>
+				    </thead>
+				    <tbody>
+				       {% for source in sources %}
+				            <tr>
+				                <td>{{ source.name }}</td>
+                        <td><a href="{{ source.category.get_absolute_url }}">{{ source.category }}</a></td>
+                        <td>{{ source.question_set.count }}</td>
+                        <td>{{ source.get_recent_submission_count }}</td>
+			            </tr>
+				       {% endfor %}
+				    </tbody>
+				</table>
+		</div><!--card-block-->
+	</div><!--card-body-->
+</div><!--card-->
+
+{% endblock %}
+{% block customscript %}
+{% include 'partials/import_datatables.html' %}
+
+  <script>
+    $(function(){
+       $('[data-toggle="tooltip"]').tooltip()
+       $('#exam-table, #team-table, #feature-table').dataTable({order: [[1, 'desc']]});
+       $('#college-table').dataTable({order: [[2, 'desc']]});
+       $('#source-table').dataTable({order: [[3, 'desc']]});
+    });
+
+    Plotly.d3.csv("{% url 'get_privileged_file' 'indicators/retention.csv' %}", function(err, rows){
+
+      function unpack(key) {
+        return rows.map(function(row) { return parseInt(row[key]); });
+      }
+
+      active_days = unpack('active_days');
+      current_sums = unpack('current_cumulative_sum');
+      older_sums = unpack('older_cumulative_sum');
+      current_max_sum = current_sums.reduce(function(a,b){return Math.max(a,b)})
+      older_max_sum = older_sums.reduce(function(a,b){return Math.max(a,b)})
+
+      function get_percentages(sums, max_sum){
+        return sums.map(function(sum) {
+          percentage = (sum / max_sum) * 100
+          return percentage.toPrecision(3) + "%"
+        })
+      }
+
+      function get_hover(key, max_sum){
+        return rows.map(function(row) {
+          days = row['active_days']
+          cumulative_sum = row[key]
+          percentage = (row[key] / max_sum) * 100
+          return cumulative_sum + " (" + percentage.toPrecision(3) + "%) users were active for at least " +  days + " different days."
+        })
+      }
+
+      var current_data = {
+        type: "scatter",
+        mode: "lines",
+        name: 'Users kept being active (current)',
+        x: active_days,
+        y: get_percentages(current_sums, current_max_sum),
+        hovertext: get_hover('current_cumulative_sum', current_max_sum),
+        hoverinfo: 'text+x',
+      }
+
+      var older_data = {
+        type: "scatter",
+        mode: "lines",
+        name: 'Users kept being active (one-month-old snapshot)',
+        line: {
+          dash: 'dot',
+          width: 4
+        },
+        x: active_days,
+        y: get_percentages(older_sums, older_max_sum),
+        hovertext: get_hover('older_cumulative_sum', older_max_sum),
+        hoverinfo: 'text+x',
+      }
+
+      data = [current_data, older_data]
+
+      var layout = {
+        title: "The Retention Metric",
+        xaxis : {title: 'Days of activity'},
+        yaxis: {title: 'Percentage of users'}
+      };
+
+      Plotly.newPlot('retention-metric', data, layout);
+
+    })
+
+    Plotly.d3.csv("{% url 'get_privileged_file' 'indicators/great-metric.csv' %}", function(err, rows){
+
+{% include 'indicators/partials/shared_functions.js' %}
+
+    dates = unpack('date');
+
+    var user_data = {
+      type: "scatter",
+      mode: "lines",
+      name: 'Active users in previous 30 days',
+      x: dates,
+      y: unpack('user_count'),
+      hoverinfo: 'text+name',
+      hovertext: get_hover('user_count'),
+    }
+
+    var answer_data = {
+      type: "scatter",
+      mode: "lines",
+      name: 'Avg answers in previous 30 days',
+      x: dates,
+      y: unpack('answer_avg'),
+      hoverinfo: 'text+name',
+      hovertext: get_hover('answer_avg'),
+    }
+
+    var contributor_data = {
+      visible: 'legendonly',
+      type: "scatter",
+      mode: "lines",
+      name: 'Active contributors in previous 30 days',
+      x: dates,
+      y: unpack('contributor_count'),
+      hoverinfo: 'text+name',
+      hovertext: get_hover('contributor_count'),
+    }
+
+    var contribution_data = {
+      visible: 'legendonly',
+      type: "scatter",
+      mode: "lines",
+      name: 'New contributions in previous 30 days',
+      x: dates,
+      y: get_contribution_data(),
+      hoverinfo: 'text+name',
+      hovertext: get_contribution_hover(),
+    }
+
+    var data = [user_data, answer_data, contributor_data, contribution_data, exam_date_data];
+
+    var layout = {
+      title: "The Great Health Metric",
+      xaxis: {
+        rangeselector: {buttons: [
+            {
+              count: 1,
+              label: '1m',
+              step: 'month',
+              stepmode: 'backward'
+            },
+            {
+              count: 6,
+              label: '6m',
+              step: 'month',
+              stepmode: 'backward'
+            },
+            {step: 'all'}
+          ]},
+        rangeslider: {range: ['2017-09-1', '{% now "y-m-d" %}']},
+        type: 'date'
+      },
+    };
+
+    Plotly.newPlot('great-metric', data, layout);
+    })
+
+    </script>
+{% endblock %}
